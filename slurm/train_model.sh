@@ -14,11 +14,13 @@
 #SBATCH --cpus-per-task=64   # nb of CPU cores per task
 #SBATCH --time=20:00:00      # max for A100 is 20h
 
-# Define model size (500,030,400 params)
+# Define args
 MODEL_TRAIN_ARGS=" \
     --deepspeed \
     --per-device-batch-size 8 \
     --per-device-batch-size-test 16 \
+    --hf-repo-name Metacreation/MMM \
+    --hf-token $1 \
     "
 
 # Output GPUs and ram info
