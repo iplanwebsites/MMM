@@ -56,8 +56,7 @@ TEST_SPLIT = 0.05
 DROPOUT = 0.1
 BATCH_SIZE_PER_DEVICE_TRAIN = 64  # multiple of 64 for A100, 8 for other GPUs (V100)
 BATCH_SIZE_PER_DEVICE_VALID = 128
-TRAINING_STEPS = None
-VALID_INTVL = 500
+VALID_DELAY = 500
 GRAD_ACC_STEPS = 1
 EVALUATION_STRATEGY = "steps"
 EVAL_ACCUMULATION_STEPS = None  # in case of CUDA OOM during eval
@@ -65,18 +64,21 @@ WEIGHT_DECAY = 0.01
 GRADIENT_CLIP_NORM = 3.0
 LABEL_SMOOTHING = 0.0
 NUM_TRAIN_EPOCHS = 20
-# 5,557,602 --> 5,521,826 (train) + 55,776 (valid) samples
+TRAINING_STEPS = -1  # unused
 USE_CUDA = True
 USE_MPS = False
 BF16 = True  # Ampere and newer
 BF16_EVAL = True
 FP16 = False
 FP16_EVAL = False
-DEEPSPEED = "slurm/"
+HALF_PRECISION_BACKEND = "auto"
+DEEPSPEED = None  # set with argparse
 TORCH_COMPILE = True
 TORCH_COMPILE_BACKEND = None  # default to "inductor"
 TORCH_COMPILE_MODE = None
 GRADIENT_CHECKPOINTING = True
+# https://pytorch.org/docs/stable/distributed.html
+# DDP_BACKEND = None
 DDP_FIND_UNUSED_PARAMETERS = False
 DDP_BUCKET_CAP_MB = None  # default to 25mb
 FULL_DETERMINISM = True
@@ -86,11 +88,17 @@ LOG_STEPS_INTVL = 50
 SAVE_STRATEGY = "steps"
 SAVE_STEPS = 500
 SAVE_TOTAL_LIMIT = 8
+SAVE_SAFETENSOR = True
+LOAD_BEST_MODEL_AT_END = False
+DISABLE_TQDM = True
 LEARNING_RATE = 6e-5
 LR_SCHEDULER = "cosine_with_restarts"
 WARMUP_RATIO = 0.10
-HUB_STRATEGY = "end"
+REPORT_TO = ["tensorboard"]  # logging_dir will be set within Baseline class
+PUSH_TO_HF_HUB = False
+HUB_STRATEGY = "every_save"
 HUB_PRIVATE_REPO = True
+NEFTUNE_NOISE_ALPHA = True
 
 
 # TEST PARAMS (for generation)

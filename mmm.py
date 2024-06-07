@@ -24,6 +24,7 @@ from utils.constants import (
     DDP_BUCKET_CAP_MB,
     DDP_FIND_UNUSED_PARAMETERS,
     DEEPSPEED,
+    DISABLE_TQDM,
     EMBEDDING_SIZE,
     EPSILON_CUTOFF,
     ETA_CUTOFF,
@@ -36,10 +37,12 @@ from utils.constants import (
     GRAD_ACC_STEPS,
     GRADIENT_CHECKPOINTING,
     GRADIENT_CLIP_NORM,
+    HALF_PRECISION_BACKEND,
     HUB_PRIVATE_REPO,
     HUB_STRATEGY,
     LABEL_SMOOTHING,
     LEARNING_RATE,
+    LOAD_BEST_MODEL_AT_END,
     LOG_LEVEL,
     LOG_STEPS_INTVL,
     LOGGING_STRATEGY,
@@ -47,13 +50,17 @@ from utils.constants import (
     MAX_POSITION_EMBEDDINGS,
     MAX_SEQ_LEN,
     MIN_SEQ_LEN,
+    NEFTUNE_NOISE_ALPHA,
     NUM_ATTENTION_HEADS,
     NUM_BEAMS,
     NUM_INFERENCES_EVAL,
     NUM_KEY_VALUE_HEADS,
     NUM_LAYERS,
     NUM_TRAIN_EPOCHS,
+    PUSH_TO_HF_HUB,
     REPETITION_PENALTY,
+    REPORT_TO,
+    SAVE_SAFETENSOR,
     SAVE_STEPS,
     SAVE_STRATEGY,
     SAVE_TOTAL_LIMIT,
@@ -67,9 +74,10 @@ from utils.constants import (
     TORCH_COMPILE,
     TORCH_COMPILE_BACKEND,
     TORCH_COMPILE_MODE,
+    TRAINING_STEPS,
     USE_CUDA,
     USE_MPS,
-    VALID_INTVL,
+    VALID_DELAY,
     VALID_SPLIT,
     VOCAB_SIZE,
     WARMUP_RATIO,
@@ -92,6 +100,8 @@ class MMM(Baseline):
 
         :param files_paths: paths of the files to use.
         """
+        # TODO randomly pick k tracks
+        # TODO randomly compute AC on t tracks (among the k kept) and b bars of these
         return DatasetMIDI(files_paths, self.tokenizer, self.data_config.max_seq_len)
 
     def create_data_collator(self, pad_on_left: bool = False) -> DataCollator:
@@ -107,7 +117,7 @@ class MMM(Baseline):
         Create the model of the baseline.
 
         :param pretrained: path of the model to load. If ``None`` is given, the model is
-            created untrained.
+            created untrained. (default: ``None``)
         :param kwargs: any additional keyword arguments that should be provided.
         """
         if pretrained is not None:
@@ -124,6 +134,7 @@ class MMM(Baseline):
 
 # TODO pretrain without Attr controls then finetune with?
 # Create config objects
+# https://huggingface.co/docs/transformers/main_classes/trainer#transformers.TrainingArguments
 training_config_kwargs = {
     "output_dir": "",  # overridden by Baseline class
     "overwrite_output_dir": False,
@@ -135,12 +146,12 @@ training_config_kwargs = {
     "per_device_eval_batch_size": BATCH_SIZE_PER_DEVICE_VALID,
     "gradient_accumulation_steps": GRAD_ACC_STEPS,
     "eval_accumulation_steps": EVAL_ACCUMULATION_STEPS,
-    "eval_steps": VALID_INTVL,
+    "eval_delay": VALID_DELAY,
     "learning_rate": LEARNING_RATE,
     "weight_decay": WEIGHT_DECAY,
     "max_grad_norm": GRADIENT_CLIP_NORM,
     "num_train_epochs": NUM_TRAIN_EPOCHS,
-    # "max_steps": args["training_steps"],
+    "max_steps": TRAINING_STEPS,
     "lr_scheduler_type": LR_SCHEDULER,
     "warmup_ratio": WARMUP_RATIO,
     "log_level": LOG_LEVEL,
@@ -149,20 +160,24 @@ training_config_kwargs = {
     "save_strategy": SAVE_STRATEGY,
     "save_steps": SAVE_STEPS,
     "save_total_limit": SAVE_TOTAL_LIMIT,
-    "use_cpu": not USE_CUDA,
+    "save_safetensors": SAVE_SAFETENSOR,
+    "use_cpu": not (USE_CUDA or USE_MPS),
     "seed": SEED,
+    "data_seed": SEED,
     "bf16": BF16,
     "bf16_full_eval": BF16_EVAL,
     "fp16": FP16,
     "fp16_full_eval": FP16_EVAL,
+    "half_precision_backend": HALF_PRECISION_BACKEND,
     "local_rank": int(os.getenv("LOCAL_RANK", -1)),  # for DDP
-    "disable_tqdm": True,
-    "load_best_model_at_end": True,
+    "disable_tqdm": DISABLE_TQDM,
+    "load_best_model_at_end": LOAD_BEST_MODEL_AT_END,
     "label_smoothing_factor": LABEL_SMOOTHING,
     "optim": "adamw_torch",
-    "report_to": ["tensorboard"],  # logging_dir will be set within Baseline class
+    "report_to": REPORT_TO,
     "ddp_find_unused_parameters": DDP_FIND_UNUSED_PARAMETERS,
     "ddp_bucket_cap_mb": DDP_BUCKET_CAP_MB,
+    "push_to_hub": PUSH_TO_HF_HUB,
     "deepspeed": DEEPSPEED,  # set with argparse
     "hub_strategy": HUB_STRATEGY,
     "hub_private_repo": HUB_PRIVATE_REPO,
@@ -172,6 +187,7 @@ training_config_kwargs = {
     "torch_compile": TORCH_COMPILE,
     "torch_compile_backend": TORCH_COMPILE_BACKEND,
     "torch_compile_mode": TORCH_COMPILE_MODE,
+    "neftune_noise_alpha": NEFTUNE_NOISE_ALPHA,
     "predict_with_generate": False,
 }
 data_config = DataConfig(

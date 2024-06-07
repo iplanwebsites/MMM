@@ -102,7 +102,7 @@ class Baseline(ABC):
 
         # Tweak configs parameters
         self.training_config_kwargs["output_dir"] = str(self.run_path)
-        self.training_config_kwargs["logging_dir"] = str(self.run_path)
+        self.training_config_kwargs["logging_dir"] = str(self.run_path / "logs")
         self.model_config.pad_token_id = self.pad_token_id
         self.model_config.bos_token_id = self.bos_token_id
         self.model_config.eos_token_id = self.eos_token_id

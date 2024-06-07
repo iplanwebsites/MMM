@@ -6,7 +6,7 @@ Multi-track music machine implementation
 Before running these commands, make sure to load a virtual Python environment if needed.
 
 ```bash
-pip install .
+pip install ".[train]"
 python scripts/preprocess_dataset.py
 python scripts/train_model.py
 ```

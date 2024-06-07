@@ -41,6 +41,7 @@ if __name__ == "__main__":
 
     # Tweak configuration
     if args["hf_repo_name"]:
+        mmm.training_config_kwargs["push_to_hub"] = True
         mmm.training_config_kwargs["hub_model_id"] = args["hf_repo_name"]
         mmm.training_config_kwargs["hub_token"] = args["hf_token"]
         # TODO make sure the trainer creates with safe tensors
