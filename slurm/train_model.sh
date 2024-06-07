@@ -17,7 +17,6 @@
 # Define model size (500,030,400 params)
 MODEL_TRAIN_ARGS=" \
     --deepspeed \
-    --no-torch-compile \
     --per-device-batch-size 8 \
     --per-device-batch-size-test 16 \
     "

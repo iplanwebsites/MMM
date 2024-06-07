@@ -231,3 +231,5 @@ mmm = MMM(
     deepcopy(data_config),
     deepcopy(generation_config),
 )
+
+# TODO if tokenizer file doesn't exist --> creates it with Controller tokens

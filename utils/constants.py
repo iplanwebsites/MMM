@@ -28,6 +28,7 @@ TOKENIZER_PARAMS = {
     "num_tempos": 48,
     "tempo_range": (50, 200),
     "programs": list(range(-1, 95 + 1)),  # TODO plot distribution of programs
+    "base_tokenizer": "REMI",
 }
 VOCAB_SIZE = 30000
 TRAINING_MAX_NB_FILES = 100000

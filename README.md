@@ -5,8 +5,25 @@ Multi-track music machine implementation
 
 Before running these commands, make sure to load a virtual Python environment if needed.
 
+### Install dependencies:
 ```bash
 pip install ".[train]"
+```
+
+### Prepare data and train
+
+#### On a Slurm cluster
+
+It will use DeepSpeed to train the model on multiple GPUs.
+
+```bash
+sbatch slurm/preprocess_dataset.sh
+python slurm/train_model.sh
+```
+
+#### Pure Python
+
+```bash
 python scripts/preprocess_dataset.py
 python scripts/train_model.py
 ```
