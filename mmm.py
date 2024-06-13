@@ -7,7 +7,8 @@ from copy import deepcopy
 from typing import TYPE_CHECKING
 
 from miditok import TokenizerConfig
-from miditok.pytorch_data import DataCollator, DatasetMIDI
+from miditok.pytorch_data import DataCollator
+from tokentamer import Controller, ControllerConfig
 from transformers import (
     AutoModelForCausalLM,
     GenerationConfig,
@@ -16,6 +17,15 @@ from transformers import (
 
 from utils.classes import Baseline, DataConfig, TokenizationConfig
 from utils.constants import (
+    AC_BAR_DENSITY,
+    AC_BAR_NOTE_DURATION,
+    AC_PITCH_LEVEL,
+    AC_POLYPHONY,
+    AC_TRACK_DENSITY,
+    AC_TRACK_NOTE_DURATION,
+    ACS_RANDOM_RATIO_RANGE,
+    BAR_DENSITY_MAX,
+    BARS_IDX_RANDOM_RATIO_RANGE,
     BATCH_SIZE_PER_DEVICE_TRAIN,
     BATCH_SIZE_PER_DEVICE_VALID,
     BF16,
@@ -57,6 +67,8 @@ from utils.constants import (
     NUM_KEY_VALUE_HEADS,
     NUM_LAYERS,
     NUM_TRAIN_EPOCHS,
+    POLYPHONY_MAX,
+    POLYPHONY_MIN,
     PUSH_TO_HF_HUB,
     REPETITION_PENALTY,
     REPORT_TO,
@@ -74,6 +86,10 @@ from utils.constants import (
     TORCH_COMPILE,
     TORCH_COMPILE_BACKEND,
     TORCH_COMPILE_MODE,
+    TRACK_DENSITY_MAX,
+    TRACK_DENSITY_MIN,
+    TRACKS_IDX_RANDOM_RATIO_RANGE,
+    TRACKS_SELECTION_RANDOM_RATIO_RANGE,
     TRAINING_STEPS,
     USE_CUDA,
     USE_MPS,
@@ -83,26 +99,60 @@ from utils.constants import (
     WARMUP_RATIO,
     WEIGHT_DECAY,
 )
+from utils.data_loading import DatasetMMM
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
     from pathlib import Path
 
+    from miditok import MusicTokenizer
     from transformers import PreTrainedModel
+
+
+CONTROLLER_CONFIG = ControllerConfig(
+    polyphony=AC_POLYPHONY,
+    polyphony_min=POLYPHONY_MIN,
+    polyphony_max=POLYPHONY_MAX,
+    pitch_level=AC_PITCH_LEVEL,
+    track_density_level=AC_TRACK_DENSITY,
+    track_density_max=TRACK_DENSITY_MAX,
+    track_density_min=TRACK_DENSITY_MIN,
+    bar_density_level=AC_BAR_DENSITY,
+    bar_density_max=BAR_DENSITY_MAX,
+    bar_note_duration=AC_BAR_NOTE_DURATION,
+    track_note_duration=AC_TRACK_NOTE_DURATION,
+)
+CUSTOM_ACS = []
 
 
 class MMM(Baseline):
     """MMM model baseline."""
 
-    def create_dataset(self, files_paths: Sequence[Path]) -> DatasetMIDI:
+    def create_tokenizer(self) -> MusicTokenizer:
+        """
+        Create the tokenizer of the baseline.
+
+        :return: tokenizer of the baseline.
+        """
+        tokenizer = super().create_tokenizer()
+        self.controller = Controller(CONTROLLER_CONFIG, tokenizer, CUSTOM_ACS)
+        return tokenizer
+
+    def create_dataset(self, files_paths: Sequence[Path]) -> DatasetMMM:
         """
         Create a ``pytorch.utils.data.Dataset`` to use to train/test a model.
 
         :param files_paths: paths of the files to use.
         """
-        # TODO randomly pick k tracks
-        # TODO randomly compute AC on t tracks (among the k kept) and b bars of these
-        return DatasetMIDI(files_paths, self.tokenizer, self.data_config.max_seq_len)
+        return DatasetMMM(
+            files_paths,
+            self.tokenizer,
+            self.data_config.max_seq_len,
+            TRACKS_SELECTION_RANDOM_RATIO_RANGE,
+            ACS_RANDOM_RATIO_RANGE,
+            TRACKS_IDX_RANDOM_RATIO_RANGE,
+            BARS_IDX_RANDOM_RATIO_RANGE,
+        )
 
     def create_data_collator(self, pad_on_left: bool = False) -> DataCollator:
         """Create a data collator to use with a ``pytorch.utils.data.DataLoader``."""
@@ -221,7 +271,7 @@ generation_config = GenerationConfig(
 )
 
 # exp -> Model size, baseline -> pretrained + finetune
-dataset = "MMD"
+dataset = "GigaMIDI"
 mmm = MMM(
     dataset,
     SEED,
@@ -233,4 +283,3 @@ mmm = MMM(
 )
 
 # TODO if tokenizer file doesn't exist --> creates it with Controller tokens
-# TODO controller should include (non-)expressive and loops

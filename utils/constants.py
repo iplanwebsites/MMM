@@ -18,7 +18,7 @@ TOKENIZER_PARAMS = {
     "pitch_range": (21, 109),
     "beat_res": {(0, 1): 12, (1, 2): 4, (2, 4): 2, (4, 8): 1},
     "num_velocities": 24,
-    "special_tokens": ["PAD", "BOS", "EOS"],
+    "special_tokens": ["PAD", "BOS", "EOS", "FillBar_Start", "FillBar_End"],
     "use_chords": False,
     "use_rests": False,
     "use_tempos": True,
@@ -30,10 +30,29 @@ TOKENIZER_PARAMS = {
     "programs": list(range(-1, 95 + 1)),  # TODO plot distribution of programs
     "base_tokenizer": "REMI",
 }
+
+# TOKENIZER TRAINING PARAMS
 VOCAB_SIZE = 30000
+ACS_RANDOM_RATIO_RANGE = (0.05, 0.9)
+TRACKS_IDX_RANDOM_RATIO_RANGE = (0.1, 1)
+BARS_IDX_RANDOM_RATIO_RANGE = (0.1, 0.7)
 TRAINING_MAX_NB_FILES = 100000
 
-TIME_DIVISION = 384
+# CONTROLLER CONFIG
+AC_POLYPHONY = True
+POLYPHONY_MIN = 1
+POLYPHONY_MAX = 6
+AC_PITCH_LEVEL = True
+AC_TRACK_DENSITY = True
+TRACK_DENSITY_MAX = 0
+TRACK_DENSITY_MIN = 18
+AC_BAR_DENSITY = True
+BAR_DENSITY_MAX = 18
+AC_BAR_NOTE_DURATION = True
+AC_TRACK_NOTE_DURATION = True
+
+# DATA LOADING PARAMS
+TRACKS_SELECTION_RANDOM_RATIO_RANGE = (0.4, 1)
 
 
 # MODEL SIZE

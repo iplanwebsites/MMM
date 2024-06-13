@@ -23,20 +23,31 @@ if __name__ == "__main__":
 
     from miditok.data_augmentation import augment_dataset
     from miditok.utils import split_files_for_training
+    from tokentamer import TokTrainingIterator
     from transformers.trainer_utils import set_seed
 
     from mmm import mmm
-    from utils.constants import DATA_CHUNK_NUM_OVERLAP_BARS
+    from utils.constants import (
+        ACS_RANDOM_RATIO_RANGE,
+        BARS_IDX_RANDOM_RATIO_RANGE,
+        DATA_CHUNK_NUM_OVERLAP_BARS,
+        TRACKS_IDX_RANDOM_RATIO_RANGE,
+    )
 
     set_seed(mmm.seed)
 
-    # TODO adding controller tokens
-
-    # Train the tokenizer
+    # Train the tokenizer-
     dataset_files_paths = mmm.dataset_files_paths
+    iterator = TokTrainingIterator(
+        mmm.controller,
+        dataset_files_paths,
+        ACS_RANDOM_RATIO_RANGE,
+        TRACKS_IDX_RANDOM_RATIO_RANGE,
+        BARS_IDX_RANDOM_RATIO_RANGE,
+    )
     mmm.tokenizer.train(
         vocab_size=mmm.tokenization_config.vocab_size,
-        files_paths=dataset_files_paths,
+        iterator=iterator,
     )
     mmm.tokenizer.save_params("tokenizer.json")
 
