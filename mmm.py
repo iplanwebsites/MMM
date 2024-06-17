@@ -19,10 +19,11 @@ from utils.classes import Baseline, DataConfig, TokenizationConfig
 from utils.constants import (
     AC_BAR_DENSITY,
     AC_BAR_NOTE_DURATION,
+    AC_BAR_POLYPHONY,
     AC_PITCH_LEVEL,
-    AC_POLYPHONY,
     AC_TRACK_DENSITY,
     AC_TRACK_NOTE_DURATION,
+    AC_TRACK_POLYPHONY,
     ACS_RANDOM_RATIO_RANGE,
     BAR_DENSITY_MAX,
     BARS_IDX_RANDOM_RATIO_RANGE,
@@ -110,7 +111,8 @@ if TYPE_CHECKING:
 
 
 CONTROLLER_CONFIG = ControllerConfig(
-    polyphony=AC_POLYPHONY,
+    bar_polyphony=AC_BAR_POLYPHONY,
+    track_polyphony=AC_TRACK_POLYPHONY,
     polyphony_min=POLYPHONY_MIN,
     polyphony_max=POLYPHONY_MAX,
     pitch_level=AC_PITCH_LEVEL,

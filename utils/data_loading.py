@@ -114,7 +114,6 @@ class DatasetMMM(DatasetMIDI):
 
         # We preprocess the Score here, before selecting the tracks to keep as some may
         # have been deleted.
-        # TODO make sure same programs are not merged
         score = self.controller.tokenizer.preprocess_score(score)
 
         # Select k tracks

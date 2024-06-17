@@ -8,7 +8,7 @@ MODEL_NAME = "MMM"
 HF_USERNAME = "Metacreation"
 
 # For MMD preprocessing
-MIN_NUM_BARS_FILE_VALID = 4
+MIN_NUM_BARS_FILE_VALID = 8
 DATA_AUGMENTATION_OFFSETS = (6, 2, 0)  # pitch, velocity, duration
 DATA_CHUNK_NUM_OVERLAP_BARS = 1
 
@@ -27,19 +27,20 @@ TOKENIZER_PARAMS = {
     "use_programs": True,
     "num_tempos": 48,
     "tempo_range": (50, 200),
-    "programs": list(range(-1, 95 + 1)),  # TODO plot distribution of programs
+    "programs": list(range(-1, 127)),
     "base_tokenizer": "REMI",
 }
 
 # TOKENIZER TRAINING PARAMS
-VOCAB_SIZE = 30000
+VOCAB_SIZE = 50000
 ACS_RANDOM_RATIO_RANGE = (0.05, 0.9)
 TRACKS_IDX_RANDOM_RATIO_RANGE = (0.1, 1)
 BARS_IDX_RANDOM_RATIO_RANGE = (0.1, 0.7)
-TRAINING_MAX_NB_FILES = 100000
+TRAINING_MAX_NUM_FILES = 100000
 
 # CONTROLLER CONFIG
-AC_POLYPHONY = True
+AC_BAR_POLYPHONY = True
+AC_TRACK_POLYPHONY = True
 POLYPHONY_MIN = 1
 POLYPHONY_MAX = 6
 AC_PITCH_LEVEL = True

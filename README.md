@@ -30,9 +30,8 @@ python scripts/train_model.py
 
 ## Data preprocessing
 
-1. Train the tokenizer on the whole non-preprocessed dataset;
-2. Split the MIDI files in train/valid/test subsets;
-3. Filter invalid files (corrupted, empty files, files with less than 4 bars);
+1. Filter non-valid files: corrupted or less than 8 bars;
+2. Train the tokenizer on a subset of 100k files from the dataset, including Attribute Controls tokens computed for k randomly selected tracks and b randomly selected bars;
+3. Split the dataset in train/valid/test subsets;
 4. Split each file into chunks that make approximately 2048 tokens;
-5. Augment each chunk on +-6 pitch intervals and -+2 velocities;
-6.
+5. Augment each chunk on up/down to +-6 pitch intervals and -+2 velocities;
