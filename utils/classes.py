@@ -33,8 +33,6 @@ class DataConfig:
         to test the model after training.
     :param data_augmentation_offsets: offsets of pitch, velocity and note duration to
         use to augment the original dataset.
-    :param min_seq_len: minimum length that a token sequence should have to be used to
-        train the model.
     :param max_seq_len: maximum length that a token sequence should have to be used to
         train the model.
     """
@@ -42,7 +40,6 @@ class DataConfig:
     ratio_valid_subset: float
     ratio_test_subset: float
     data_augmentation_offsets: tuple[int, int, int]
-    min_seq_len: int
     max_seq_len: int
 
     def __post_init__(self) -> None:
@@ -266,7 +263,7 @@ class Baseline(ABC):
         :return: the train/valid/test subsets as ``pytorch.utils.data.Dataset`` objects.
         """
         return [
-            self.create_dataset(list(paths.glob("**/*.json")))
+            self.create_dataset(list(paths.glob("**/*.mid")))
             for paths in self.data_subsets_paths
         ]
 

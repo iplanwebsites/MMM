@@ -11,10 +11,12 @@ if __name__ == "__main__":
 
     # Parse arguments for training params / model size
     parser = ArgumentParser(description="Model training script")
-    parser.add_argument("--deepspeed", action="store_false")
-    parser.add_argument("--no-deepspeed", dest="deepspeed", action="store_true")
-    parser.add_argument("--torch-compile", action="store_false")
-    parser.add_argument("--no-torch-compile", dest="torch_compile", action="store_true")
+    parser.add_argument("--deepspeed", action="store_true")
+    parser.add_argument("--no-deepspeed", dest="deepspeed", action="store_false")
+    parser.add_argument("--torch-compile", action="store_true")
+    parser.add_argument(
+        "--no-torch-compile", dest="torch_compile", action="store_false"
+    )
     parser.set_defaults(deepspeed=False)
     parser.set_defaults(torch_compile=True)
     parser.add_argument(
@@ -43,6 +45,7 @@ if __name__ == "__main__":
     for attr in ("per_device_batch_size_train", "per_device_batch_size_test"):
         if args[attr]:
             mmm.training_config_kwargs[attr] = args[attr]
+    mmm.training_config_kwargs["torch_compile"] = args["torch_compile"]
 
     # TODO introduce metrics: measure effectiveness of attribute controls
     """from metrics import Metrics, apply_argmax_to_preds

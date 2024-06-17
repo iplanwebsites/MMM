@@ -41,7 +41,7 @@ if __name__ == "__main__":
     # Train the tokenizer-
     dataset_files_paths = mmm.dataset_files_paths
     shuffle(dataset_files_paths)
-    dataset_files_paths_training = mmm.dataset_files_paths[:TRAINING_MAX_NUM_FILES]
+    dataset_files_paths_training = dataset_files_paths[:TRAINING_MAX_NUM_FILES]
     iterator = TokTrainingIterator(
         mmm.controller,
         dataset_files_paths_training,

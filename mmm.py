@@ -40,7 +40,7 @@ from utils.constants import (
     EPSILON_CUTOFF,
     ETA_CUTOFF,
     EVAL_ACCUMULATION_STEPS,
-    EVALUATION_STRATEGY,
+    EVAL_STRATEGY,
     FEEDFORWARD_SIZE,
     FP16,
     FP16_EVAL,
@@ -60,7 +60,6 @@ from utils.constants import (
     LR_SCHEDULER,
     MAX_POSITION_EMBEDDINGS,
     MAX_SEQ_LEN,
-    MIN_SEQ_LEN,
     NEFTUNE_NOISE_ALPHA,
     NUM_ATTENTION_HEADS,
     NUM_BEAMS,
@@ -148,7 +147,7 @@ class MMM(Baseline):
         """
         return DatasetMMM(
             files_paths,
-            self.tokenizer,
+            self.controller,
             self.data_config.max_seq_len,
             TRACKS_SELECTION_RANDOM_RATIO_RANGE,
             ACS_RANDOM_RATIO_RANGE,
@@ -193,7 +192,7 @@ training_config_kwargs = {
     "do_train": True,
     "do_eval": True,
     "do_predict": False,
-    "evaluation_strategy": EVALUATION_STRATEGY,
+    "eval_strategy": EVAL_STRATEGY,
     "per_device_train_batch_size": BATCH_SIZE_PER_DEVICE_TRAIN,
     "per_device_eval_batch_size": BATCH_SIZE_PER_DEVICE_VALID,
     "gradient_accumulation_steps": GRAD_ACC_STEPS,
@@ -243,7 +242,7 @@ training_config_kwargs = {
     "predict_with_generate": False,
 }
 data_config = DataConfig(
-    VALID_SPLIT, TEST_SPLIT, DATA_AUGMENTATION_OFFSETS, MIN_SEQ_LEN, MAX_SEQ_LEN
+    VALID_SPLIT, TEST_SPLIT, DATA_AUGMENTATION_OFFSETS, MAX_SEQ_LEN
 )
 tok_config = TokenizationConfig(
     "MMM", TokenizerConfig(**deepcopy(TOKENIZER_PARAMS)), VOCAB_SIZE
@@ -283,5 +282,3 @@ mmm = MMM(
     deepcopy(data_config),
     deepcopy(generation_config),
 )
-
-# TODO if tokenizer file doesn't exist --> creates it with Controller tokens
