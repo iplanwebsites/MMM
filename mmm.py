@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import sys
 from copy import deepcopy
 from typing import TYPE_CHECKING
 
@@ -123,7 +124,6 @@ CONTROLLER_CONFIG = ControllerConfig(
     bar_note_duration=AC_BAR_NOTE_DURATION,
     track_note_duration=AC_TRACK_NOTE_DURATION,
 )
-CUSTOM_ACS = []
 
 
 class MMM(Baseline):
@@ -136,7 +136,7 @@ class MMM(Baseline):
         :return: tokenizer of the baseline.
         """
         tokenizer = super().create_tokenizer()
-        self.controller = Controller(CONTROLLER_CONFIG, tokenizer, CUSTOM_ACS)
+        self.controller = Controller(CONTROLLER_CONFIG, tokenizer)
         return tokenizer
 
     def create_dataset(self, files_paths: Sequence[Path]) -> DatasetMMM:
@@ -247,8 +247,8 @@ data_config = DataConfig(
 tok_config = TokenizationConfig(
     "MMM", TokenizerConfig(**deepcopy(TOKENIZER_PARAMS)), VOCAB_SIZE
 )
-attn_implem = "flash_attention_2"  # TODO if available
-model_config = MistralConfig(
+attn_implem = "flash_attention_2" if "flash_attn" in sys.modules else None
+model_config = MistralConfig(  # TODO mixtral?
     vocab_size=VOCAB_SIZE,
     hidden_size=EMBEDDING_SIZE,
     intermediate_size=FEEDFORWARD_SIZE,

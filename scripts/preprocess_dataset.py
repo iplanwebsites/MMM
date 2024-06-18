@@ -38,15 +38,14 @@ if __name__ == "__main__":
 
     # Filter non-valid files
     dataset_files_paths = mmm.dataset_files_paths
-    for idx in range(len(dataset_files_paths), -1, -1):
+    for file_path in dataset_files_paths:
         try:
-            score_ = Score(dataset_files_paths[idx])
+            score_ = Score(file_path)
         except SCORE_LOADING_EXCEPTION:
-            del dataset_files_paths[idx]
+            file_path.unlink()
             continue
-
         if not is_score_valid(score_, MIN_NUM_BARS_FILE_VALID):
-            del dataset_files_paths[idx]
+            file_path.unlink()
 
     # Train the tokenizer
     dataset_files_paths = mmm.dataset_files_paths

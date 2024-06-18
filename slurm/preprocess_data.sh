@@ -16,7 +16,7 @@ echo "START TIME: $(date)"
 free -m
 
 # Defining the right environment variables
-export PYTHONPATH=$WORK/MMM
+export PYTHONPATH=$HOME/MMM
 export HF_HOME=$SCRATCH/.hf_cache
 
 # Load the python environment
@@ -24,8 +24,6 @@ export HF_HOME=$SCRATCH/.hf_cache
 source .venv/bin/activate
 
 # Run the training
-srun --jobid "$SLURM_JOBID" bash -c "python3.9 clean_mmd.py"
-srun --jobid "$SLURM_JOBID" bash -c "python3.9 tokenize_datasets.py"
-srun --jobid "$SLURM_JOBID" bash -c "python3.9 gather_tokens_paths_per_genre.py"
+srun --jobid "$SLURM_JOBID" bash -c "python scripts/preprocess_data.py"
 
 echo "END TIME: $(date)"

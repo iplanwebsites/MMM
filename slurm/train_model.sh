@@ -37,7 +37,7 @@ echo "Master addr: $MASTER_ADDR"
 echo "Node list: $SLURM_JOB_NODELIST"
 
 # Defining the right environment variables
-export PYTHONPATH=$WORK/MMM
+export PYTHONPATH=$HOME/MMM
 export HF_HOME=$SCRATCH/.hf_cache
 #export HF_METRICS_OFFLINE=1
 #export TRANSFORMERS_OFFLINE=1
