@@ -247,6 +247,7 @@ data_config = DataConfig(
 tok_config = TokenizationConfig(
     "MMM", TokenizerConfig(**deepcopy(TOKENIZER_PARAMS)), VOCAB_SIZE
 )
+attn_implem = "flash_attention_2"  # TODO if available
 model_config = MistralConfig(
     vocab_size=VOCAB_SIZE,
     hidden_size=EMBEDDING_SIZE,
@@ -257,6 +258,7 @@ model_config = MistralConfig(
     max_position_embeddings=MAX_POSITION_EMBEDDINGS,
     sliding_window=SLIDING_WINDOWS,
     use_cache=False,  # for gradient checkpointing during training
+    attn_implementation=attn_implem,
 )
 generation_config = GenerationConfig(
     max_new_tokens=NUM_INFERENCES_EVAL,

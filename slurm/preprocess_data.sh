@@ -8,8 +8,8 @@
 #SBATCH --mail-user=raa60@sfu.ca # Default mail
 #SBATCH --nodes=1            # total nb of nodes
 #SBATCH --ntasks-per-node=1  # nb of tasks per node
-#SBATCH --cpus-per-task=5    # nb of CPU cores per task
-#SBATCH --time=15:00:00
+#SBATCH --cpus-per-task=64    # nb of CPU cores per task
+#SBATCH --time=4:00:00
 
 # Output ram info
 echo "START TIME: $(date)"
@@ -21,7 +21,7 @@ export HF_HOME=$SCRATCH/.hf_cache
 
 # Load the python environment
 # Make sure the required packages are installed
-module load python/3.9.12
+source .venv/bin/activate
 
 # Run the training
 srun --jobid "$SLURM_JOBID" bash -c "python3.9 clean_mmd.py"

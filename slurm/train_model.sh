@@ -3,16 +3,16 @@
 # Inspired from https://github.com/bigscience-workshop/bigscience/blob/7ccf7e42577fe71e88cf8bed3b9ca965c7afb8f7/train/tr11-176B-ml/tr11-176B-ml.slurm
 
 # Set SLURM / hardware environment
-#SBATCH --job-name=train-smile-500m
-#SBATCH --output=logs/train-smile-500m.out
-#SBATCH --error=logs/train-smile-500m_err.out
+#SBATCH --job-name=train-mmm
+#SBATCH --output=logs/train-mmm.out
+#SBATCH --error=logs/train-mmm_err.out
 #SBATCH --account=def-pasquier
 #SBATCH --mail-user=raa60@sfu.ca # Default mail
 #SBATCH --nodes=1            # total nb of nodes
 #SBATCH --ntasks-per-node=1  # nb of tasks per node
-#SBATCH --gpus-per-node=v100l:4
-#SBATCH --cpus-per-task=64   # nb of CPU cores per task
-#SBATCH --time=20:00:00      # max for A100 is 20h
+#SBATCH --gpus-per-node=a100:4
+#SBATCH --cpus-per-task=48   # nb of CPU cores per task
+#SBATCH --time=24:00:00
 
 # Define args
 MODEL_TRAIN_ARGS=" \
@@ -56,8 +56,8 @@ export LAUNCHER="torchrun \
     "
 
 # Load the python environment
-source ../venv/bin/activate
-# pip install -U flash-attn --no-build-isolation
+source .venv/bin/activate
+# pip install flash-attn --no-build-isolation
 
 # Run the training
 srun --jobid "$SLURM_JOBID" bash -c "$LAUNCHER exp_generation.py $MODEL_TRAIN_ARGS"

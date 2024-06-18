@@ -174,17 +174,23 @@ class Baseline(ABC):
         return list(self.dataset_path.glob("**/*.mid"))
 
     @property
-    def data_subsets_paths(self) -> list[Path]:
+    def data_subsets_paths(self) -> tuple[list[Path], list[Path], list[Path]]:
         """
-        Return the paths of the directories of the data subsets.
+        Return the paths of the files of the data subsets.
 
         :return: paths of the directories of the data subsets.
         """
-        return [
-            path_main_data_directory() / f"{self.dataset}_preprocessed" / "train",
-            path_main_data_directory() / f"{self.dataset}_preprocessed" / "valid",
-            path_main_data_directory() / f"{self.dataset}_preprocessed" / "test",
+        dataset_files_paths = self.dataset_files_paths
+        total_num_files = len(dataset_files_paths)
+        num_files_valid = round(total_num_files * self.data_config.ratio_valid_subset)
+        num_files_test = round(total_num_files * self.data_config.ratio_test_subset)
+        midi_paths_valid = dataset_files_paths[:num_files_valid]
+        midi_paths_test = dataset_files_paths[
+            num_files_valid : num_files_valid + num_files_test
         ]
+        midi_paths_train = dataset_files_paths[num_files_valid + num_files_test :]
+
+        return midi_paths_train, midi_paths_valid, midi_paths_test
 
     def __return_special_token(self, tok: str) -> int:
         return self.tokenizer[tok]
