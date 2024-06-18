@@ -10,6 +10,15 @@ Before running these commands, make sure to load a virtual Python environment if
 pip install ".[train]"
 ```
 
+#### FlashAttention2
+
+To install [FlashAttention2](https://github.com/Dao-AILab/flash-attention?tab=readme-ov-file#installation-and-features):
+
+```bash
+pip install ninja
+pip install flash-attn --no-build-isolation
+```
+
 ### Prepare data and train
 
 #### On a Slurm cluster
