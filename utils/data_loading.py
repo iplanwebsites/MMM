@@ -2,10 +2,14 @@
 
 from __future__ import annotations
 
-from random import choices, shuffle, uniform
+from random import choice, choices, shuffle, uniform
 from typing import TYPE_CHECKING
 
 from miditok.constants import SCORE_LOADING_EXCEPTION
+from miditok.data_augmentation.data_augmentation import (
+    _filter_offset_tuples_to_score,
+    augment_score,
+)
 from miditok.pytorch_data import DatasetMIDI
 from miditok.utils import get_bars_ticks
 from symusic import Score
@@ -306,11 +310,23 @@ class DatasetMMMPreTok(DatasetMIDI):
         shuffle(tracks)
         score.tracks = tracks
 
-        # TODO augment it with randomly selected offsets among possible offsets
+        # Augment the Score with randomly selected offsets among possible ones
+        pitch_offsets = _filter_offset_tuples_to_score(
+            self.pitch_offsets.copy(),
+            score,
+            restrict_on_program_tessitura=True,
+        )
+        score = augment_score(
+            score,
+            choice(pitch_offsets),  # noqa: S311
+            choice(self.velocity_offsets),  # noqa: S311
+            choice(self.duration_offsets),  # noqa: S311
+        )
 
         # TODO select specific chunk of about 2048k tokens
 
         # TODO place infilling tokens on randomly selected tracks/bars
+
         # TODO (non-)expressive, loops, genres
 
         tokseq = self._tokenize_score(score)

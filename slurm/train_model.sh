@@ -12,6 +12,7 @@
 #SBATCH --ntasks-per-node=1  # nb of tasks per node
 #SBATCH --gpus-per-node=a100:4
 #SBATCH --cpus-per-task=48   # nb of CPU cores per task
+#SBATCH --mem-per-cpu=10G
 #SBATCH --time=24:00:00
 
 # Define args
@@ -19,15 +20,13 @@ MODEL_TRAIN_ARGS=" \
     --deepspeed \
     --per-device-batch-size 8 \
     --per-device-batch-size-test 16 \
-    --hf-repo-name Metacreation/MMM \
-    --hf-token $1 \
     "
 
 # Output GPUs and ram info
 echo "START TIME: $(date)"
 nvidia-smi
 nvidia-smi topo -m
-free -m
+free -h
 
 # Hardware vars
 GPUS_PER_NODE=8
@@ -39,8 +38,8 @@ echo "Node list: $SLURM_JOB_NODELIST"
 # Defining the right environment variables
 export PYTHONPATH=$HOME/MMM
 export HF_HOME=$SCRATCH/.hf_cache
-#export HF_METRICS_OFFLINE=1
-#export TRANSFORMERS_OFFLINE=1
+export HF_METRICS_OFFLINE=1
+export TRANSFORMERS_OFFLINE=1
 #export OMP_NUM_THREADS=1
 
 # Set launcher command with params

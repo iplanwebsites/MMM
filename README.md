@@ -5,7 +5,23 @@ Multi-track music machine implementation
 
 Before running these commands, make sure to load a virtual Python environment if needed.
 
+### On Compute Canada
+
+On Compute Canada (Narval), all these steps can be reproduced by running:
+
+```bash
+# Unzip the dataset (you might need to remove macOS fork files in the archive) and install flash attention 2 simultaneously
+sbatch slurm/unzip_gigamidi.sh && sbatch slurm/install_flashattention.sh
+```
+
+```bash
+# Remove non-valid files then train the model
+sbatch --wait slurm/preprocess_dataset.sh
+sh scripts/train_model_loop.sh
+```
+
 ### Install dependencies:
+
 ```bash
 pip install ".[train]"
 ```

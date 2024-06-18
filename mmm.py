@@ -107,6 +107,7 @@ if TYPE_CHECKING:
     from pathlib import Path
 
     from miditok import MusicTokenizer
+    from symusic import Score
     from transformers import PreTrainedModel
 
 
@@ -181,6 +182,35 @@ class MMM(Baseline):
         # model = BetterTransformer.transform(model, keep_original_model=False)
         model.generation_config = self.generation_config
         return model
+
+    def generate_new_track(self, score: Score, program: int) -> None:
+        """
+        Generate a new track of a given Score.
+
+        The new track will be generated with the model and
+        TODO might need to provide a few additional arguments like a GenerationConfig
+
+        :param score: ``symusic.Score`` to generate a new track from.
+        :param program: program of the track to generate. Give ``-1`` for drums.
+        """
+        # TODO implement: tokenize --> inject Infilling --> generate --> detok...
+
+    def generate_infilling(
+        self, score: Score, bar_idx: tuple[int, int], track_idx: Sequence[int]
+    ) -> None:
+        """
+        Generate a new portion of a ``symusic.Score``.
+
+        The portion to infill will be generated with the model and added to the score
+        inplace for the selected tracks. Notes originally present in the portion to
+        infill will be removed.
+        TODO might need to provide a few additional arguments like a GenerationConfig
+
+        :param score: ``symusic.Score`` to generate a new track from.
+        :param bar_idx: tuple of bar numbers of the portion of the score to infill.
+        :param track_idx: indexes of the tracks to infill.
+        """
+        # TODO implement: tokenize --> inject Infilling --> generate --> detok...
 
 
 # TODO pretrain without Attr controls then finetune with?

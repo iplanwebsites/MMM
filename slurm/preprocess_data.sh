@@ -9,11 +9,12 @@
 #SBATCH --nodes=1            # total nb of nodes
 #SBATCH --ntasks-per-node=1  # nb of tasks per node
 #SBATCH --cpus-per-task=64    # nb of CPU cores per task
+#SBATCH --mem=249G
 #SBATCH --time=4:00:00
 
 # Output ram info
 echo "START TIME: $(date)"
-free -m
+free -h
 
 # Defining the right environment variables
 export PYTHONPATH=$HOME/MMM
@@ -24,6 +25,6 @@ export HF_HOME=$SCRATCH/.hf_cache
 source .venv/bin/activate
 
 # Run the training
-srun --jobid "$SLURM_JOBID" bash -c "python scripts/preprocess_data.py"
+python scripts/preprocess_data.py
 
 echo "END TIME: $(date)"
