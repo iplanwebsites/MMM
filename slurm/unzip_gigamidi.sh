@@ -12,7 +12,7 @@
 free -h
 
 
-cd $SCRATCH/data/Cleaned_Ver_EP_Class-GigaMIDI
+cd $SCRATCH/data/GigaMIDI
 zip -d Cleaned_Ver_GigaMIDI.zip __MACOSX/\*
 zip -d Cleaned_Ver_GigaMIDI.zip \*/.DS_Store
 unzip Cleaned_Ver_GigaMIDI.zip

@@ -14,7 +14,7 @@
 #SBATCH --ntasks-per-node=1  # nb of tasks per node
 #SBATCH --gpus-per-node=a100:1
 #SBATCH --cpus-per-task=8   # nb of CPU cores per task
-#SBATCH --mem=48G
+#SBATCH --mem=128G
 #SBATCH --time=2:00:00
 
 # Output GPUs and ram info
