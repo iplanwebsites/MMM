@@ -100,7 +100,7 @@ from utils.constants import (
     WARMUP_RATIO,
     WEIGHT_DECAY,
 )
-from utils.data_loading import DatasetMMM
+from utils.data_loading import DatasetMMMPreTok
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -140,13 +140,13 @@ class MMM(Baseline):
         self.controller = Controller(CONTROLLER_CONFIG, tokenizer)
         return tokenizer
 
-    def create_dataset(self, files_paths: Sequence[Path]) -> DatasetMMM:
+    def create_dataset(self, files_paths: Sequence[Path]) -> DatasetMMMPreTok:
         """
         Create a ``pytorch.utils.data.Dataset`` to use to train/test a model.
 
         :param files_paths: paths of the files to use.
         """
-        return DatasetMMM(
+        return DatasetMMMPreTok(
             files_paths,
             self.controller,
             self.data_config.max_seq_len,
@@ -154,6 +154,7 @@ class MMM(Baseline):
             ACS_RANDOM_RATIO_RANGE,
             TRACKS_IDX_RANDOM_RATIO_RANGE,
             BARS_IDX_RANDOM_RATIO_RANGE,
+            self.data_config.data_augmentation_offsets,
         )
 
     def create_data_collator(self, pad_on_left: bool = False) -> DataCollator:

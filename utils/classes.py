@@ -268,10 +268,7 @@ class Baseline(ABC):
 
         :return: the train/valid/test subsets as ``pytorch.utils.data.Dataset`` objects.
         """
-        return [
-            self.create_dataset(list(paths.glob("**/*.mid")))
-            for paths in self.data_subsets_paths
-        ]
+        return [self.create_dataset(paths) for paths in self.data_subsets_paths]
 
     def __repr__(self) -> str:
         """
