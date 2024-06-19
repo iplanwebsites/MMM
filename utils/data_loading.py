@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from random import choice, choices, shuffle, uniform
+from random import choice, choices, uniform
 from typing import TYPE_CHECKING
 
 from miditok.constants import SCORE_LOADING_EXCEPTION
@@ -11,9 +11,15 @@ from miditok.data_augmentation.data_augmentation import (
     augment_score,
 )
 from miditok.pytorch_data import DatasetMIDI
-from miditok.utils import get_bars_ticks
+from miditok.utils import (
+    get_average_num_tokens_per_note,
+    get_bars_ticks,
+    split_score_per_note_density,
+)
 from symusic import Score
 from torch import LongTensor
+
+from utils.constants import MAX_NUM_FILES_NUM_TOKENS_PER_NOTE
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -62,6 +68,11 @@ class DatasetMMMPreTok(DatasetMIDI):
         velocity and duration values.
     :param acs_idx_random_ratio_range: range of ratios (between 0 and 1 included) of
         attribute controls to compute for each selected tracks and bars.
+    :param bar_fill_ratio: ratio between 0 and 1 at which a sample should be
+        "bar-filled". The difference between 1 and this ratio accounts for the ratio for
+        which a sample will be "track-filled".
+    :param bar_masking_ratio_range: range of the random ratio of bars to mask during
+        training when infilling bars.
     :param bos_token_id: *BOS* token id. (default: ``None``)
     :param eos_token_id: *EOS* token id. (default: ``None``)
     :param sample_key_name: name of the dictionary key containing the sample data when
@@ -80,6 +91,8 @@ class DatasetMMMPreTok(DatasetMIDI):
         tracks_idx_random_ratio_range: tuple[float, float],
         bars_idx_random_ratio_range: tuple[float, float],
         data_augmentation_offsets: tuple[int, int, int],
+        bar_fill_ratio: float,
+        bar_masking_ratio_range: tuple[float, float],
         bos_token_id: int | None = None,
         eos_token_id: int | None = None,
         sample_key_name: str = "input_ids",
@@ -96,6 +109,13 @@ class DatasetMMMPreTok(DatasetMIDI):
         self.velocity_offsets = list(range(-velocity_offsets, velocity_offsets + 1))
         duration_offsets = data_augmentation_offsets[2]
         self.duration_offsets = list(range(-duration_offsets, duration_offsets + 1))
+        self.bar_fill_ratio = bar_fill_ratio
+        self.bar_masking_ratio_range = bar_masking_ratio_range
+
+        self.average_num_tokens_per_note = get_average_num_tokens_per_note(
+            self.controller.tokenizer, files_paths[:MAX_NUM_FILES_NUM_TOKENS_PER_NOTE]
+        )
+
         super().__init__(
             files_paths,
             self.controller.tokenizer,
@@ -122,19 +142,18 @@ class DatasetMMMPreTok(DatasetMIDI):
         # Tokenize on the fly
         try:
             score = Score(self.files_paths[idx])
-        except SCORE_LOADING_EXCEPTION:
+        except SCORE_LOADING_EXCEPTION:  # shouldn't happen if the dataset is cleaned
             return {self.sample_key_name: None}
 
         # We preprocess the Score here, before selecting the tracks to keep as some may
         # have been deleted.
         score = self.controller.tokenizer.preprocess_score(score)
 
-        # Select k tracks
+        # Select k tracks (shuffled)
         num_tracks_to_keep = round(
             len(score.tracks) * uniform(*self.ratio_random_tracks_range)  # noqa: S311
         )
         tracks = choices(score.tracks, k=num_tracks_to_keep)  # noqa: S311
-        shuffle(tracks)
         score.tracks = tracks
 
         # Augment the Score with randomly selected offsets among possible ones
@@ -150,12 +169,27 @@ class DatasetMMMPreTok(DatasetMIDI):
             choice(self.duration_offsets),  # noqa: S311
         )
 
-        # TODO select specific chunk of about x tokens
+        # Select specific chunk of about x tokens
+        score_chunks = split_score_per_note_density(
+            score,
+            self.max_seq_len,
+            self.average_num_tokens_per_note,
+            num_overlap_bars=0,
+        )  # TODO make sure most make no more than max_seq_len
+        score = choice(score_chunks)  # noqa: S311
 
-        # TODO place infilling tokens on randomly selected tracks/bars
+        # TODO Place infilling tokens on randomly selected tracks/bars
+        """track_fill = random() > self.bar_fill_ratio
+        if track_fill:
+            t = 0
+        else:
+            bars_ticks = get_bars_ticks(score)
+            # TODO inpaint on n tracks randomly selected
+            bars_section = 0"""
 
-        # TODO (non-)expressive, loops, genres
+        # TODO External labels: (non-)expressive, loops, genres
 
+        # Tokenize
         tokseq = self._tokenize_score(score)
         # If not one_token_stream, we only take the first track/sequence
         token_ids = tokseq.ids if self.tokenizer.one_token_stream else tokseq[0].ids

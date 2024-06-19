@@ -71,6 +71,8 @@ from utils.constants import (
     POLYPHONY_MAX,
     POLYPHONY_MIN,
     PUSH_TO_HF_HUB,
+    RATIO_BAR_INFILLING,
+    RATIOS_RANGE_BAR_INFILLING,
     REPETITION_PENALTY,
     REPORT_TO,
     SAVE_SAFETENSOR,
@@ -155,6 +157,8 @@ class MMM(Baseline):
             TRACKS_IDX_RANDOM_RATIO_RANGE,
             BARS_IDX_RANDOM_RATIO_RANGE,
             self.data_config.data_augmentation_offsets,
+            RATIO_BAR_INFILLING,
+            RATIOS_RANGE_BAR_INFILLING,
         )
 
     def create_data_collator(self, pad_on_left: bool = False) -> DataCollator:
