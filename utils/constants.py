@@ -29,6 +29,18 @@ TOKENIZER_PARAMS = {
     "tempo_range": (50, 200),
     "programs": list(range(-1, 127)),
     "base_tokenizer": "REMI",
+    "bar_polyphony": True,
+    "track_polyphony": True,
+    "polyphony_min": 1,
+    "polyphony_max": 6,
+    "pitch_level": True,
+    "track_density_level": True,
+    "track_density_max": 18,
+    "track_density_min": 0,
+    "bar_density_level": True,
+    "bar_density_max": 18,
+    "bar_note_duration": True,
+    "track_note_duration": True,
 }
 
 # TOKENIZER TRAINING PARAMS
@@ -38,19 +50,6 @@ TRACKS_IDX_RANDOM_RATIO_RANGE = (0.1, 1)
 BARS_IDX_RANDOM_RATIO_RANGE = (0.1, 0.7)
 TRAINING_MAX_NUM_FILES = 100000
 
-# CONTROLLER CONFIG
-AC_BAR_POLYPHONY = True
-AC_TRACK_POLYPHONY = True
-POLYPHONY_MIN = 1
-POLYPHONY_MAX = 6
-AC_PITCH_LEVEL = True
-AC_TRACK_DENSITY = True
-TRACK_DENSITY_MAX = 0
-TRACK_DENSITY_MIN = 18
-AC_BAR_DENSITY = True
-BAR_DENSITY_MAX = 18
-AC_BAR_NOTE_DURATION = True
-AC_TRACK_NOTE_DURATION = True
 
 # DATA LOADING PARAMS
 TRACKS_SELECTION_RANDOM_RATIO_RANGE = (0.4, 1)

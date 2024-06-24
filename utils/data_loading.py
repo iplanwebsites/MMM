@@ -5,6 +5,7 @@ from __future__ import annotations
 from random import choice, choices, uniform
 from typing import TYPE_CHECKING
 
+from miditok.attribute_controls import create_random_ac_indexes
 from miditok.constants import SCORE_LOADING_EXCEPTION
 from miditok.data_augmentation.data_augmentation import (
     _filter_offset_tuples_to_score,
@@ -13,7 +14,6 @@ from miditok.data_augmentation.data_augmentation import (
 from miditok.pytorch_data import DatasetMIDI
 from miditok.utils import (
     get_average_num_tokens_per_note,
-    get_bars_ticks,
     split_score_per_note_density,
 )
 from symusic import Score
@@ -22,11 +22,10 @@ from torch import LongTensor
 from utils.constants import MAX_NUM_FILES_NUM_TOKENS_PER_NOTE
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
+    from collections.abc import Callable, Sequence
     from pathlib import Path
 
-    from miditok import TokSequence
-    from tokentamer import Controller
+    from miditok import MMM, TokSequence
 
 
 class DatasetMMMPreTok(DatasetMIDI):
@@ -57,17 +56,11 @@ class DatasetMMMPreTok(DatasetMIDI):
     when iterated.
 
     :param files_paths: paths to the music files to load.
-    :param controller: TokenTamer Controller.
+    :param tokenizer: MidiTok tokenizer.
     :param max_seq_len: maximum sequence length (in num of tokens)
     :param ratio_random_tracks_range:
-    :param tracks_idx_random_ratio_range: range of ratios (between 0 and 1 included) of
-        tracks to compute attribute controls on.
-    :param bars_idx_random_ratio_range: range of ratios (between 0 and 1 included) of
-        bars to compute attribute controls on.
     :param data_augmentation_offsets: tuple of data augmentation offsets for pitch,
         velocity and duration values.
-    :param acs_idx_random_ratio_range: range of ratios (between 0 and 1 included) of
-        attribute controls to compute for each selected tracks and bars.
     :param bar_fill_ratio: ratio between 0 and 1 at which a sample should be
         "bar-filled". The difference between 1 and this ratio accounts for the ratio for
         which a sample will be "track-filled".
@@ -75,6 +68,15 @@ class DatasetMMMPreTok(DatasetMIDI):
         training when infilling bars.
     :param bos_token_id: *BOS* token id. (default: ``None``)
     :param eos_token_id: *EOS* token id. (default: ``None``)
+    :param pre_tokenize: whether to pre-tokenize the data files when creating the
+        ``Dataset`` object. If this is enabled, the ``Dataset`` will tokenize all the
+        files at its initialization and store the tokens in memory.
+    :param ac_tracks_random_ratio_range: range of ratios (between 0 and 1 included) of
+        tracks to compute attribute controls on. If ``None`` is given, the attribute
+        controls will be computed for all the tracks. (default: ``None``)
+    :param ac_bars_random_ratio_range: range of ratios (between 0 and 1 included) of
+        bars to compute attribute controls on. If ``None`` is given, the attribute
+        controls will be computed for all the bars. (default: ``None``)
     :param sample_key_name: name of the dictionary key containing the sample data when
         iterating the dataset. (default: ``"input_ids"``)
     :param labels_key_name: name of the dictionary key containing the labels data when
@@ -84,25 +86,26 @@ class DatasetMMMPreTok(DatasetMIDI):
     def __init__(
         self,
         files_paths: Sequence[Path],
-        controller: Controller,
+        tokenizer: MMM,
         max_seq_len: int,
         ratio_random_tracks_range: tuple[float, float],
-        acs_idx_random_ratio_range: tuple[float, float],
-        tracks_idx_random_ratio_range: tuple[float, float],
-        bars_idx_random_ratio_range: tuple[float, float],
         data_augmentation_offsets: tuple[int, int, int],
         bar_fill_ratio: float,
         bar_masking_ratio_range: tuple[float, float],
         bos_token_id: int | None = None,
         eos_token_id: int | None = None,
+        pre_tokenize: bool = False,
+        ac_tracks_random_ratio_range: tuple[float, float] | None = None,
+        ac_bars_random_ratio_range: tuple[float, float] | None = None,
+        func_to_get_labels: Callable[
+            [Score, TokSequence | list[TokSequence], Path],
+            int | list[int] | LongTensor,
+        ]
+        | None = None,
         sample_key_name: str = "input_ids",
         labels_key_name: str = "labels",
     ) -> None:
-        self.controller = controller
         self.ratio_random_tracks_range = ratio_random_tracks_range
-        self.acs_idx_random_ratio_range = acs_idx_random_ratio_range
-        self.tracks_idx_random_ratio_range = tracks_idx_random_ratio_range
-        self.bars_idx_random_ratio_range = bars_idx_random_ratio_range
         pitch_offsets = data_augmentation_offsets[0]
         self.pitch_offsets = list(range(-pitch_offsets, pitch_offsets + 1))
         velocity_offsets = data_augmentation_offsets[1]
@@ -113,17 +116,19 @@ class DatasetMMMPreTok(DatasetMIDI):
         self.bar_masking_ratio_range = bar_masking_ratio_range
 
         self.average_num_tokens_per_note = get_average_num_tokens_per_note(
-            self.controller.tokenizer, files_paths[:MAX_NUM_FILES_NUM_TOKENS_PER_NOTE]
+            self.tokenizer, files_paths[:MAX_NUM_FILES_NUM_TOKENS_PER_NOTE]
         )
 
         super().__init__(
             files_paths,
-            self.controller.tokenizer,
+            tokenizer,
             max_seq_len,
-            pre_tokenize=False,
             bos_token_id=bos_token_id,
             eos_token_id=eos_token_id,
-            func_to_get_labels=None,
+            pre_tokenize=pre_tokenize,
+            ac_tracks_random_ratio_range=ac_tracks_random_ratio_range,
+            ac_bars_random_ratio_range=ac_bars_random_ratio_range,
+            func_to_get_labels=func_to_get_labels,
             sample_key_name=sample_key_name,
             labels_key_name=labels_key_name,
         )
@@ -147,7 +152,7 @@ class DatasetMMMPreTok(DatasetMIDI):
 
         # We preprocess the Score here, before selecting the tracks to keep as some may
         # have been deleted.
-        score = self.controller.tokenizer.preprocess_score(score)
+        score = self.tokenizer.preprocess_score(score)
 
         # Select k tracks (shuffled)
         num_tracks_to_keep = round(
@@ -197,31 +202,25 @@ class DatasetMMMPreTok(DatasetMIDI):
         return {self.sample_key_name: LongTensor(token_ids)}
 
     def _tokenize_score(self, score: Score) -> TokSequence:
-        # Get random idx of ACs, tracks and bars
-        num_acs_controller = len(self.controller.attribute_controls)
-        num_acs = round(
-            num_acs_controller * uniform(*self.acs_idx_random_ratio_range)  # noqa: S311
-        )
-        acs_idx = choices(list(range(num_acs_controller)), k=num_acs)  # noqa: S311
-        num_tracks = round(
-            len(score.tracks) * uniform(*self.tracks_idx_random_ratio_range)  # noqa: S311
-        )
-        tracks_idx = choices(list(range(len(score.tracks))), k=num_tracks)  # noqa: S311
-        num_bars_score = len(get_bars_ticks(score))
-        num_bars = round(
-            num_bars_score * uniform(*self.bars_idx_random_ratio_range)  # noqa: S311
-        )
-        bars_idx = choices(list(range(num_bars_score)), k=num_bars)  # noqa: S311
+        # Preprocess the music file
+        score = self.tokenizer.preprocess_score(score)
 
-        # Inject attribute controls
-        self.controller.inject_control_tokens(
-            tokseq := self.tokenizer(
-                score, no_preprocess_score=True, concatenate_track_sequences=False
-            ),
+        # Randomly create attribute controls indexes
+        ac_indexes = None
+        if self.tracks_idx_random_ratio_range or self.bars_idx_random_ratio_range:
+            ac_indexes = create_random_ac_indexes(
+                score,
+                self.tokenizer.attribute_controls,
+                self.tracks_idx_random_ratio_range,
+                self.bars_idx_random_ratio_range,
+            )
+
+        # Tokenize it
+        tokseq = self.tokenizer.encode(
             score,
-            acs_idx,
-            tracks_idx,
-            bars_idx,
+            no_preprocess_score=True,
+            attribute_controls_indexes=ac_indexes,
+            concatenate_track_sequences=False,  # TODO select track infill sequence here
         )
 
         # If tokenizing on the fly a multi-stream tokenizer, only keeps the first track

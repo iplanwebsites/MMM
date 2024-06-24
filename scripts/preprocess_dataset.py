@@ -22,13 +22,12 @@ def is_score_valid(score: Score, min_num_bars: int = MIN_NUM_BARS_FILE_VALID) ->
 if __name__ == "__main__":
     from random import shuffle
 
+    from miditok import TokTrainingIterator
     from miditok.constants import SCORE_LOADING_EXCEPTION
-    from tokentamer.tokenizer_training_iterator import TokTrainingIterator
     from transformers.trainer_utils import set_seed
 
     from mmm import mmm
     from utils.constants import (
-        ACS_RANDOM_RATIO_RANGE,
         BARS_IDX_RANDOM_RATIO_RANGE,
         TRACKS_IDX_RANDOM_RATIO_RANGE,
         TRAINING_MAX_NUM_FILES,
@@ -52,9 +51,8 @@ if __name__ == "__main__":
     shuffle(dataset_files_paths)
     dataset_files_paths_training = dataset_files_paths[:TRAINING_MAX_NUM_FILES]
     iterator = TokTrainingIterator(
-        mmm.controller,
+        mmm.tokenizer,
         dataset_files_paths_training,
-        ACS_RANDOM_RATIO_RANGE,
         TRACKS_IDX_RANDOM_RATIO_RANGE,
         BARS_IDX_RANDOM_RATIO_RANGE,
     )

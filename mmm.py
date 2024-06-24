@@ -9,7 +9,6 @@ from typing import TYPE_CHECKING
 
 from miditok import TokenizerConfig
 from miditok.pytorch_data import DataCollator
-from tokentamer import Controller, ControllerConfig
 from transformers import (
     AutoModelForCausalLM,
     GenerationConfig,
@@ -18,15 +17,6 @@ from transformers import (
 
 from utils.classes import Baseline, DataConfig, TokenizationConfig
 from utils.constants import (
-    AC_BAR_DENSITY,
-    AC_BAR_NOTE_DURATION,
-    AC_BAR_POLYPHONY,
-    AC_PITCH_LEVEL,
-    AC_TRACK_DENSITY,
-    AC_TRACK_NOTE_DURATION,
-    AC_TRACK_POLYPHONY,
-    ACS_RANDOM_RATIO_RANGE,
-    BAR_DENSITY_MAX,
     BARS_IDX_RANDOM_RATIO_RANGE,
     BATCH_SIZE_PER_DEVICE_TRAIN,
     BATCH_SIZE_PER_DEVICE_VALID,
@@ -68,8 +58,6 @@ from utils.constants import (
     NUM_KEY_VALUE_HEADS,
     NUM_LAYERS,
     NUM_TRAIN_EPOCHS,
-    POLYPHONY_MAX,
-    POLYPHONY_MIN,
     PUSH_TO_HF_HUB,
     RATIO_BAR_INFILLING,
     RATIOS_RANGE_BAR_INFILLING,
@@ -89,8 +77,6 @@ from utils.constants import (
     TORCH_COMPILE,
     TORCH_COMPILE_BACKEND,
     TORCH_COMPILE_MODE,
-    TRACK_DENSITY_MAX,
-    TRACK_DENSITY_MIN,
     TRACKS_IDX_RANDOM_RATIO_RANGE,
     TRACKS_SELECTION_RANDOM_RATIO_RANGE,
     TRAINING_STEPS,
@@ -108,39 +94,12 @@ if TYPE_CHECKING:
     from collections.abc import Sequence
     from pathlib import Path
 
-    from miditok import MusicTokenizer
     from symusic import Score
     from transformers import PreTrainedModel
 
 
-CONTROLLER_CONFIG = ControllerConfig(
-    bar_polyphony=AC_BAR_POLYPHONY,
-    track_polyphony=AC_TRACK_POLYPHONY,
-    polyphony_min=POLYPHONY_MIN,
-    polyphony_max=POLYPHONY_MAX,
-    pitch_level=AC_PITCH_LEVEL,
-    track_density_level=AC_TRACK_DENSITY,
-    track_density_max=TRACK_DENSITY_MAX,
-    track_density_min=TRACK_DENSITY_MIN,
-    bar_density_level=AC_BAR_DENSITY,
-    bar_density_max=BAR_DENSITY_MAX,
-    bar_note_duration=AC_BAR_NOTE_DURATION,
-    track_note_duration=AC_TRACK_NOTE_DURATION,
-)
-
-
 class MMM(Baseline):
     """MMM model baseline."""
-
-    def create_tokenizer(self) -> MusicTokenizer:
-        """
-        Create the tokenizer of the baseline.
-
-        :return: tokenizer of the baseline.
-        """
-        tokenizer = super().create_tokenizer()
-        self.controller = Controller(CONTROLLER_CONFIG, tokenizer)
-        return tokenizer
 
     def create_dataset(self, files_paths: Sequence[Path]) -> DatasetMMMPreTok:
         """
@@ -150,15 +109,14 @@ class MMM(Baseline):
         """
         return DatasetMMMPreTok(
             files_paths,
-            self.controller,
+            self.tokenizer,
             self.data_config.max_seq_len,
             TRACKS_SELECTION_RANDOM_RATIO_RANGE,
-            ACS_RANDOM_RATIO_RANGE,
-            TRACKS_IDX_RANDOM_RATIO_RANGE,
-            BARS_IDX_RANDOM_RATIO_RANGE,
             self.data_config.data_augmentation_offsets,
             RATIO_BAR_INFILLING,
             RATIOS_RANGE_BAR_INFILLING,
+            ac_tracks_random_ratio_range=TRACKS_IDX_RANDOM_RATIO_RANGE,
+            ac_bars_random_ratio_range=BARS_IDX_RANDOM_RATIO_RANGE,
         )
 
     def create_data_collator(self, pad_on_left: bool = False) -> DataCollator:
