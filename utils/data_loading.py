@@ -156,9 +156,9 @@ class DatasetMMMPreTok(DatasetMIDI):
 
         # Select k tracks (shuffled)
         num_tracks_to_keep = round(
-            len(score.tracks) * uniform(*self.ratio_random_tracks_range)  # noqa: S311
+            len(score.tracks) * uniform(*self.ratio_random_tracks_range)
         )
-        tracks = choices(score.tracks, k=num_tracks_to_keep)  # noqa: S311
+        tracks = choices(score.tracks, k=num_tracks_to_keep)
         score.tracks = tracks
 
         # Augment the Score with randomly selected offsets among possible ones
@@ -169,9 +169,9 @@ class DatasetMMMPreTok(DatasetMIDI):
         )
         score = augment_score(
             score,
-            choice(pitch_offsets),  # noqa: S311
-            choice(self.velocity_offsets),  # noqa: S311
-            choice(self.duration_offsets),  # noqa: S311
+            choice(pitch_offsets),
+            choice(self.velocity_offsets),
+            choice(self.duration_offsets),
         )
 
         # Select specific chunk of about x tokens
@@ -181,7 +181,7 @@ class DatasetMMMPreTok(DatasetMIDI):
             self.average_num_tokens_per_note,
             num_overlap_bars=0,
         )  # TODO make sure most make no more than max_seq_len
-        score = choice(score_chunks)  # noqa: S311
+        score = choice(score_chunks)
 
         # TODO Place infilling tokens on randomly selected tracks/bars
         """track_fill = random() > self.bar_fill_ratio

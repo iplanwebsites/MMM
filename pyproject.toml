@@ -1,7 +1,7 @@
 
 [project]
 name = "MMM"
-version = "0.1.0"
+version = "0.0.1"
 dependencies = [
     "numpy>=1.19",
     "miditok @ git+https://github.com/Natooz/MidiTok",
@@ -75,16 +75,10 @@ ignore = [
     "FBT001",
     "FBT002",
     "UP038",
+    "S311",
 ]
 
 [tool.ruff.per-file-ignores]
-# S105:
-# we don't use passwords in MidiTok, only HF token for the interactions with the hub.
-# However we have a lot of variables with "token"(s) in their name, which would yield a
-# lot of lint errors or require a lot of noqa exceptions.
-"miditok/**" = [
-    "S105",
-]
 "tests/**" = [
     "ANN201",  # allow no return type hint for pytest methods
     "D103",  # no need to document pytest methods
