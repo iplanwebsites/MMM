@@ -2,11 +2,10 @@
 
 from __future__ import annotations
 
-from random import choice, choices, uniform
+from random import choice, random, sample, uniform
 from typing import TYPE_CHECKING
 
 from miditok.attribute_controls import create_random_ac_indexes
-from miditok.constants import SCORE_LOADING_EXCEPTION
 from miditok.data_augmentation.data_augmentation import (
     _filter_offset_tuples_to_score,
     augment_score,
@@ -16,8 +15,6 @@ from miditok.utils import (
     get_average_num_tokens_per_note,
     split_score_per_note_density,
 )
-from symusic import Score
-from torch import LongTensor
 
 from utils.constants import MAX_NUM_FILES_NUM_TOKENS_PER_NOTE
 
@@ -26,6 +23,8 @@ if TYPE_CHECKING:
     from pathlib import Path
 
     from miditok import MMM, TokSequence
+    from symusic import Score
+    from torch import LongTensor
 
 
 class DatasetMMMPreTok(DatasetMIDI):
@@ -68,9 +67,6 @@ class DatasetMMMPreTok(DatasetMIDI):
         training when infilling bars.
     :param bos_token_id: *BOS* token id. (default: ``None``)
     :param eos_token_id: *EOS* token id. (default: ``None``)
-    :param pre_tokenize: whether to pre-tokenize the data files when creating the
-        ``Dataset`` object. If this is enabled, the ``Dataset`` will tokenize all the
-        files at its initialization and store the tokens in memory.
     :param ac_tracks_random_ratio_range: range of ratios (between 0 and 1 included) of
         tracks to compute attribute controls on. If ``None`` is given, the attribute
         controls will be computed for all the tracks. (default: ``None``)
@@ -94,7 +90,6 @@ class DatasetMMMPreTok(DatasetMIDI):
         bar_masking_ratio_range: tuple[float, float],
         bos_token_id: int | None = None,
         eos_token_id: int | None = None,
-        pre_tokenize: bool = False,
         ac_tracks_random_ratio_range: tuple[float, float] | None = None,
         ac_bars_random_ratio_range: tuple[float, float] | None = None,
         func_to_get_labels: Callable[
@@ -119,13 +114,23 @@ class DatasetMMMPreTok(DatasetMIDI):
             self.tokenizer, files_paths[:MAX_NUM_FILES_NUM_TOKENS_PER_NOTE]
         )
 
+        # Infill tokens, set as attribute here to avoid to access to vocab dic
+        self._infill_track_start_token = "FillTrack_Start"
+        self._infill_track_end_token = "FillTrack_End"
+        self._infill_bar_start_token = "FillBar_Start"
+        self._infill_bar_end_token = "FillBar_End"
+        self._infill_track_start_token_id = self.tokenizer.vocab["FillTrack_Start"]
+        self._infill_track_end_token_id = self.tokenizer.vocab["FillTrack_End"]
+        self._infill_bar_start_token_id = self.tokenizer.vocab["FillBar_Start"]
+        self._infill_bar_end_token_id = self.tokenizer.vocab["FillBar_End"]
+
         super().__init__(
             files_paths,
             tokenizer,
             max_seq_len,
             bos_token_id=bos_token_id,
             eos_token_id=eos_token_id,
-            pre_tokenize=pre_tokenize,
+            pre_tokenize=False,  # can't pre-tokenize with the random selections
             ac_tracks_random_ratio_range=ac_tracks_random_ratio_range,
             ac_bars_random_ratio_range=ac_bars_random_ratio_range,
             func_to_get_labels=func_to_get_labels,
@@ -133,32 +138,15 @@ class DatasetMMMPreTok(DatasetMIDI):
             labels_key_name=labels_key_name,
         )
 
-    def __getitem__(self, idx: int) -> dict[str, LongTensor]:
-        """
-        Return the ``idx`` elements of the dataset.
-
-        If the dataset is pre-tokenized, the method will return the token ids.
-        Otherwise, it will tokenize the ``idx``th file on the fly. If the file to is
-        corrupted, the method will return an dictionary with ``None`` values.
-
-        :param idx: idx of the file/sample.
-        :return: the token ids, with optionally the associated label.
-        """
-        # Tokenize on the fly
-        try:
-            score = Score(self.files_paths[idx])
-        except SCORE_LOADING_EXCEPTION:  # shouldn't happen if the dataset is cleaned
-            return {self.sample_key_name: None}
-
-        # We preprocess the Score here, before selecting the tracks to keep as some may
-        # have been deleted.
+    def _tokenize_score(self, score: Score) -> TokSequence:
+        # Preprocess the music file
         score = self.tokenizer.preprocess_score(score)
 
         # Select k tracks (shuffled)
         num_tracks_to_keep = round(
             len(score.tracks) * uniform(*self.ratio_random_tracks_range)
         )
-        tracks = choices(score.tracks, k=num_tracks_to_keep)
+        tracks = sample(score.tracks, k=num_tracks_to_keep)
         score.tracks = tracks
 
         # Augment the Score with randomly selected offsets among possible ones
@@ -183,28 +171,6 @@ class DatasetMMMPreTok(DatasetMIDI):
         )  # TODO make sure most make no more than max_seq_len
         score = choice(score_chunks)
 
-        # TODO Place infilling tokens on randomly selected tracks/bars
-        """track_fill = random() > self.bar_fill_ratio
-        if track_fill:
-            t = 0
-        else:
-            bars_ticks = get_bars_ticks(score)
-            # TODO inpaint on n tracks randomly selected
-            bars_section = 0"""
-
-        # TODO External labels: (non-)expressive, loops, genres
-
-        # Tokenize
-        tokseq = self._tokenize_score(score)
-        # If not one_token_stream, we only take the first track/sequence
-        token_ids = tokseq.ids if self.tokenizer.one_token_stream else tokseq[0].ids
-
-        return {self.sample_key_name: LongTensor(token_ids)}
-
-    def _tokenize_score(self, score: Score) -> TokSequence:
-        # Preprocess the music file
-        score = self.tokenizer.preprocess_score(score)
-
         # Randomly create attribute controls indexes
         ac_indexes = None
         if self.tracks_idx_random_ratio_range or self.bars_idx_random_ratio_range:
@@ -216,39 +182,44 @@ class DatasetMMMPreTok(DatasetMIDI):
             )
 
         # Tokenize it
-        tokseq = self.tokenizer.encode(
+        sequences = self.tokenizer.encode(
             score,
             no_preprocess_score=True,
             attribute_controls_indexes=ac_indexes,
-            concatenate_track_sequences=False,  # TODO select track infill sequence here
+            concatenate_track_sequences=False,
         )
 
-        # If tokenizing on the fly a multi-stream tokenizer, only keeps the first track
-        if not self.pre_tokenize and not self.tokenizer.one_token_stream:
-            tokseq = [tokseq[0]]
+        # Place infilling tokens on randomly selected tracks/bars
+        if random() > self.bar_fill_ratio:
+            # Add Track Fill start/end tokens
+            seq_infill = sequences.pop(choice(list(range(len(sequences)))))
+            seq_infill.ids.insert(0, self._infill_track_start_token_id)
+            seq_infill.ids.append(self._infill_track_end_token_id)
+            sequences.append(seq_infill)
+        else:
+            # Bar infilling
+            bars_ticks = sequences[0]._ticks_bars
+            bar_section_length = max(
+                1,
+                round(len(bars_ticks) * uniform(*self.bar_masking_ratio_range)),
+            )
+            bar_section_idx_start = choice(range(len(bars_ticks) - bar_section_length))
+            # TODO extract token sections of the bars for each track
+            extracted_seqs = []
+            for si in range(len(sequences)):
+                t = 0
+            # TODO add track start/end for each track
+            # TODO add BarInfill tokens
 
-        # If this file is a chunk (split_files_for_training), determine its id.
-        # By default, we add BOS and EOS tokens following the values of
-        # self.bos_token_id and self.eos_token_id (that may be None), except when the
-        # file is identified as a chunk.
-        add_bos_token = add_eos_token = True
-        for marker in score.markers:
-            if marker.time != 0:
-                break
-            if marker.text.startswith("miditok: chunk"):
-                chunk_id, chunk_id_last = map(
-                    int, marker.text.split(" ")[-1].split("/")
-                )
-                add_bos_token = chunk_id == 0
-                add_eos_token = chunk_id == chunk_id_last
+        # TODO External labels: (non-)expressive, loops, genres to add to the seq
 
         # Preprocessing token ids: reduce sequence length, add BOS/EOS tokens
-        tokseq = sum(tokseq)
+        tokseq = sum(sequences)
         tokseq.ids = self._preprocess_token_ids(
             tokseq.ids,
             self.max_seq_len,
-            self.bos_token_id if add_bos_token else None,
-            self.eos_token_id if add_eos_token else None,
+            self.bos_token_id,
+            self.eos_token_id,
             enforce_eos_token_if_seq_len_exceed_lim=False,
         )
         return tokseq

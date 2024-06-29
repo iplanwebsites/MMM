@@ -18,7 +18,15 @@ TOKENIZER_PARAMS = {
     "pitch_range": (21, 109),
     "beat_res": {(0, 1): 12, (1, 2): 4, (2, 4): 2, (4, 8): 1},
     "num_velocities": 24,
-    "special_tokens": ["PAD", "BOS", "EOS", "FillBar_Start", "FillBar_End"],
+    "special_tokens": [
+        "PAD",
+        "BOS",
+        "EOS",
+        "FillBar_Start",
+        "FillBar_End",
+        "FillTrack_Start",
+        "FillTrack_End",
+    ],
     "use_chords": False,
     "use_rests": False,
     "use_tempos": True,
@@ -54,10 +62,6 @@ BARS_IDX_RANDOM_RATIO_RANGE = (0.1, 0.7)
 TRAINING_MAX_NUM_FILES = 100000
 
 
-# DATA LOADING PARAMS
-TRACKS_SELECTION_RANDOM_RATIO_RANGE = (0.4, 1)
-
-
 # MODEL SIZE
 MAX_POSITION_EMBEDDINGS = 8192
 EMBEDDING_SIZE = 768
@@ -73,8 +77,9 @@ MAX_SEQ_LEN = 4096
 VALID_SPLIT = 0.05
 TEST_SPLIT = 0.05
 MAX_NUM_FILES_NUM_TOKENS_PER_NOTE = 400
+TRACKS_SELECTION_RANDOM_RATIO_RANGE = (0.4, 1)
 RATIO_BAR_INFILLING = 0.75
-RATIOS_RANGE_BAR_INFILLING = (0.10, 0.5)
+RATIOS_RANGE_BAR_INFILLING = (0.10, 0.4)
 
 
 # TRAINING PARAMS
