@@ -176,7 +176,6 @@ class MMM(Baseline):
         # TODO implement: tokenize --> inject Infilling --> generate --> detok...
 
 
-# TODO pretrain without Attr controls then finetune with?
 # Create config objects
 # https://huggingface.co/docs/transformers/main_classes/trainer#transformers.TrainingArguments
 training_config_kwargs = {

@@ -24,6 +24,7 @@ if __name__ == "__main__":
 
     from miditok import TokTrainingIterator
     from miditok.constants import SCORE_LOADING_EXCEPTION
+    from tqdm import tqdm
     from transformers.trainer_utils import set_seed
 
     from mmm import mmm
@@ -37,7 +38,7 @@ if __name__ == "__main__":
 
     # Filter non-valid files
     dataset_files_paths = mmm.dataset_files_paths
-    for file_path in dataset_files_paths:
+    for file_path in tqdm(dataset_files_paths, desc="Filtering non-valid MIDI files"):
         try:
             score_ = Score(file_path)
         except SCORE_LOADING_EXCEPTION:
