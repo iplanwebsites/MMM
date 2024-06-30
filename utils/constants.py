@@ -22,7 +22,8 @@ TOKENIZER_PARAMS = {
         "PAD",
         "BOS",
         "EOS",
-        "FillBar_Start",
+        "Infill_Bar",  # Indicate a bar to be filled in a seq
+        "FillBar_Start",  # Start of the infilled Bar
         "FillBar_End",
         "FillTrack_Start",
         "FillTrack_End",
