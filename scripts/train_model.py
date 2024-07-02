@@ -6,7 +6,7 @@
 if __name__ == "__main__":
     from argparse import ArgumentParser
 
-    from mmm import mmm
+    from mmm.mmm import mmm
     from utils.training import whole_training_process
 
     # Parse arguments for training params / model size
