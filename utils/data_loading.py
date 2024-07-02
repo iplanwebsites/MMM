@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
-from random import choice, random, sample, uniform
+from random import choice, random, sample, shuffle, uniform
 from typing import TYPE_CHECKING
 
 import numpy as np
+from miditok import TokSequence
 from miditok.attribute_controls import create_random_ac_indexes
 from miditok.data_augmentation.data_augmentation import (
     _filter_offset_tuples_to_score,
@@ -23,7 +24,7 @@ if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
     from pathlib import Path
 
-    from miditok import MMM, TokSequence
+    from miditok import MMM
     from symusic import Score
     from torch import LongTensor
 
@@ -159,6 +160,17 @@ class DatasetMMMPreTok(DatasetMIDI):
         )
 
     def _tokenize_score(self, score: Score) -> TokSequence:
+        # Delete unused elements in order to compute the bar ticks that we will use,
+        # otherwise if unused elements are at the end of the score they can give us
+        # bar ticks exceeding the tokens
+        score.markers = []
+        for track in score.tracks:
+            track.controls = []
+            if not self.tokenizer.config.use_sustain_pedals:
+                track.pedals = []
+            if not self.tokenizer.config.use_pitch_bends:
+                track.pitch_bends = []
+
         # Select specific chunk of about x tokens
         score_chunks = split_score_per_note_density(
             score,
@@ -167,28 +179,33 @@ class DatasetMMMPreTok(DatasetMIDI):
             num_overlap_bars=0,
             min_seq_len=MIN_SEQ_LEN,
         )  # TODO make sure most make no more than max_seq_len
-        score = choice(score_chunks)
+        # We shuffle them and select the first to be able to select another one in the
+        # case where the chunk is not valid.
+        shuffle(score_chunks)
+        score = score_chunks.pop(0)
 
-        # Augment the Score with randomly selected offsets among possible ones
-        pitch_offsets = _filter_offset_tuples_to_score(
-            self.pitch_offsets.copy(),
-            score,
-            restrict_on_program_tessitura=True,
-        )
-        if len(pitch_offsets) > 0:
-            score = augment_score(
-                score,
-                choice(pitch_offsets),
-                choice(self.velocity_offsets),
-                choice(self.duration_offsets),
+        # Augment the Score with randomly selected offsets among possible ones and
+        # preprocess it.
+        score = self.augment_and_preprocess_score(score)
+
+        # Special case where the score contained only notes outside the pitch range
+        # that were removed during preprocessing. In this case we try to select another
+        # chunk and if none is valid we return an empty sequence.
+        while len(score.tracks) == 0 and len(score_chunks) > 0:
+            score = score_chunks.pop(0)
+            score = self.augment_and_preprocess_score(score)
+        if len(score.tracks) == 0:
+            return TokSequence(
+                ids=[
+                    self.tokenizer.vocab["Track_Start"],
+                    self.tokenizer.vocab["Track_End"],
+                ],
+                tokens=["Track_Start", "Track_End"],
             )
 
-        # Preprocess the music file
-        score = self.tokenizer.preprocess_score(score)
-
         # Select k tracks (shuffled)
-        num_tracks_to_keep = round(
-            len(score.tracks) * uniform(*self.ratio_random_tracks_range)
+        num_tracks_to_keep = max(
+            1, round(len(score.tracks) * uniform(*self.ratio_random_tracks_range))
         )
         tracks = sample(list(score.tracks), k=num_tracks_to_keep)
         score.tracks = tracks
@@ -244,12 +261,20 @@ class DatasetMMMPreTok(DatasetMIDI):
             )
 
             # Extract token sections of the bars to infill for each track/seq
+            # We do not select tracks that end before bar_tick_start
+            sequences_idx_pop = [
+                si
+                for si, sequence in enumerate(sequences)
+                if sequence.events[-1].time > bar_tick_start
+            ]
+            # TODO handle if there is no Sequence
             tracks_bars_infill_indexes = sample(
-                list(range(len(sequences))),
+                sequences_idx_pop,
                 k=max(
                     1,
                     round(
-                        len(sequences) * uniform(*self.bar_masking_tracks_ratio_range)
+                        len(sequences_idx_pop)
+                        * uniform(*self.bar_masking_tracks_ratio_range)
                     ),
                 ),
             )
@@ -263,10 +288,6 @@ class DatasetMMMPreTok(DatasetMIDI):
                         token_idx_start += 1
                 else:
                     token_idx_start = np.nonzero(times >= bar_tick_start)[0]
-                    if len(token_idx_start) == 0:
-                        # Special case where the track ends before the beginning of the
-                        # portion to infill
-                        continue
                     token_idx_start = token_idx_start[0]
                 if bar_tick_end is None:
                     # excluding Track_End and attribute control token
@@ -314,3 +335,25 @@ class DatasetMMMPreTok(DatasetMIDI):
             enforce_eos_token_if_seq_len_exceed_lim=False,
         )
         return tokseq
+
+    def augment_and_preprocess_score(self, score: Score) -> Score:
+        """
+        Augment a ``symusic.Score`` and preprocess it with the tokenizer.
+
+        :param score: score to augment and preprocess.
+        :return: the augmented and preprocessed track.
+        """
+        score = self.tokenizer.preprocess_score(score)
+        pitch_offsets = _filter_offset_tuples_to_score(
+            self.pitch_offsets.copy(),
+            score,
+            restrict_on_program_tessitura=True,
+        )
+        if len(pitch_offsets) > 0:
+            score = augment_score(
+                score,
+                choice(pitch_offsets),
+                choice(self.velocity_offsets),
+                choice(self.duration_offsets),
+            )
+        return score
