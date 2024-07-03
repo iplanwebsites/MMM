@@ -134,14 +134,14 @@ class DatasetMMMPreTok(DatasetMIDI):
         )
 
         # Infill tokens, set as attribute here to avoid to access to vocab dic
-        self._infill_bar_token = "Infill_Bar"
         self._infill_track_start_token = "FillTrack_Start"
         self._infill_track_end_token = "FillTrack_End"
+        self._infill_bar_token = "Infill_Bar"
         self._infill_bar_start_token = "FillBar_Start"
         self._infill_bar_end_token = "FillBar_End"
-        self._infill_bar_token_id = tokenizer.vocab["Infill_Bar"]
         self._infill_track_start_token_id = tokenizer.vocab["FillTrack_Start"]
         self._infill_track_end_token_id = tokenizer.vocab["FillTrack_End"]
+        self._infill_bar_token_id = tokenizer.vocab["Infill_Bar"]
         self._infill_bar_start_token_id = tokenizer.vocab["FillBar_Start"]
         self._infill_bar_end_token_id = tokenizer.vocab["FillBar_End"]
 
@@ -164,6 +164,8 @@ class DatasetMMMPreTok(DatasetMIDI):
         # otherwise if unused elements are at the end of the score they can give us
         # bar ticks exceeding the tokens
         score.markers = []
+        score.lyrics = []
+        score.key_signatures = []
         for track in score.tracks:
             track.controls = []
             if not self.tokenizer.config.use_sustain_pedals:
@@ -178,7 +180,7 @@ class DatasetMMMPreTok(DatasetMIDI):
             self.average_num_tokens_per_note,
             num_overlap_bars=0,
             min_seq_len=MIN_SEQ_LEN,
-        )  # TODO make sure most make no more than max_seq_len
+        )
         # We shuffle them and select the first to be able to select another one in the
         # case where the chunk is not valid.
         shuffle(score_chunks)
@@ -267,7 +269,6 @@ class DatasetMMMPreTok(DatasetMIDI):
                 for si, sequence in enumerate(sequences)
                 if sequence.events[-1].time > bar_tick_start
             ]
-            # TODO handle if there is no Sequence
             tracks_bars_infill_indexes = sample(
                 sequences_idx_pop,
                 k=max(
@@ -309,8 +310,9 @@ class DatasetMMMPreTok(DatasetMIDI):
 
                 # Add BarInfill tokens + update sequences
                 seq_before = sequences[si][:token_idx_start]
-                seq_before.ids.append(self._infill_bar_token_id)
-                seq_before.tokens.append(self._infill_bar_token)
+                for _ in range(bar_section_length):
+                    seq_before.ids.append(self._infill_bar_token_id)
+                    seq_before.tokens.append(self._infill_bar_token)
                 seq_after = sequences[si][token_idx_end:]
                 sequences[si] = seq_before + seq_after
 

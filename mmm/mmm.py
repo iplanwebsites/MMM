@@ -99,6 +99,7 @@ if TYPE_CHECKING:
     from transformers import PreTrainedModel
 
 
+# TODO subclassing model + do not compute loss on AC and Infill tokens idx
 class MMM(Baseline):
     """MMM model baseline."""
 
