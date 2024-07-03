@@ -25,8 +25,6 @@ TOKENIZER_PARAMS = {
         "Infill_Bar",  # Indicate a bar to be filled in a seq
         "FillBar_Start",  # Start of the infilled Bar
         "FillBar_End",
-        "FillTrack_Start",
-        "FillTrack_End",
     ],
     "use_chords": False,
     "use_rests": False,

@@ -134,13 +134,9 @@ class DatasetMMMPreTok(DatasetMIDI):
         )
 
         # Infill tokens, set as attribute here to avoid to access to vocab dic
-        self._infill_track_start_token = "FillTrack_Start"
-        self._infill_track_end_token = "FillTrack_End"
         self._infill_bar_token = "Infill_Bar"
         self._infill_bar_start_token = "FillBar_Start"
         self._infill_bar_end_token = "FillBar_End"
-        self._infill_track_start_token_id = tokenizer.vocab["FillTrack_Start"]
-        self._infill_track_end_token_id = tokenizer.vocab["FillTrack_End"]
         self._infill_bar_token_id = tokenizer.vocab["Infill_Bar"]
         self._infill_bar_start_token_id = tokenizer.vocab["FillBar_Start"]
         self._infill_bar_end_token_id = tokenizer.vocab["FillBar_End"]
@@ -230,16 +226,12 @@ class DatasetMMMPreTok(DatasetMIDI):
             concatenate_track_sequences=False,
         )
 
-        # Place infilling tokens on randomly selected tracks/bars
-        if len(sequences) > 1 and random() > self.bar_fill_ratio:
-            # Add Track Fill start/end tokens
-            seq_infill = sequences.pop(choice(list(range(len(sequences)))))
-            seq_infill.ids.insert(0, self._infill_track_start_token_id)
-            seq_infill.ids.append(self._infill_track_end_token_id)
-            seq_infill.tokens.insert(0, self._infill_track_start_token)
-            seq_infill.tokens.append(self._infill_track_end_token)
-            sequences.append(seq_infill)
-        else:
+        # If doing bar infilling we place extract the bars and create place the
+        # right infilling tokens
+        # Otherwise (track infilling), there is nothing to do here. If a user wants to
+        # create a new track, we'll just have to add Track_Start and Program tokens at
+        # the end of the sequence and generate from here.
+        if len(sequences) > 1 and random() < self.bar_fill_ratio:
             # Bar infilling
             # Determine the portion to infill
             bars_ticks = sequences[0]._ticks_bars

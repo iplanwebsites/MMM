@@ -27,7 +27,7 @@ if __name__ == "__main__":
     from tqdm import tqdm
     from transformers.trainer_utils import set_seed
 
-    from mmm import mmm
+    from utils.baseline import mmm
     from utils.constants import (
         BARS_IDX_RANDOM_RATIO_RANGE,
         TRACKS_IDX_RANDOM_RATIO_RANGE,

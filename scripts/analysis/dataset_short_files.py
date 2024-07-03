@@ -279,7 +279,7 @@ if __name__ == "__main__":
     from symusic import Score
     from tqdm import tqdm
 
-    from mmm import mmm
+    from utils.baseline import mmm
     from utils.constants import (
         MIN_NUM_BARS_FILE_VALID,
     )
