@@ -124,7 +124,6 @@ class MMMBaseline(Baseline):
         return DataCollator(
             self.pad_token_id,
             pad_on_left=pad_on_left,
-            copy_inputs_as_labels=True,
         )
 
     def create_model(self, pretrained: str | None = None, **kwargs) -> MMM:
