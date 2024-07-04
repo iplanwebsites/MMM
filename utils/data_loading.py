@@ -6,6 +6,7 @@ from random import choice, random, sample, shuffle, uniform
 from typing import TYPE_CHECKING
 
 import numpy as np
+import torch
 from miditok import TokSequence
 from miditok.attribute_controls import create_random_ac_indexes
 from miditok.data_augmentation.data_augmentation import (
@@ -141,6 +142,24 @@ class DatasetMMMPreTok(DatasetMIDI):
         self._infill_bar_start_token_id = tokenizer.vocab["FillBar_Start"]
         self._infill_bar_end_token_id = tokenizer.vocab["FillBar_End"]
 
+        # Token ids that should be masked from the "labels" entry so that the loss is
+        # not computed other them. Doing so, the model will not be trained to predict
+        # them.
+        self._token_ids_no_loss = torch.concat(
+            [
+                torch.LongTensor(
+                    [self._infill_bar_token_id, self._infill_bar_start_token_id]
+                ),
+                torch.LongTensor(
+                    [
+                        tokenizer.vocab[token]
+                        for ac in tokenizer.attribute_controls
+                        for token in ac.tokens
+                    ]
+                ),
+            ]
+        )
+
         super().__init__(
             files_paths,
             tokenizer,
@@ -154,6 +173,25 @@ class DatasetMMMPreTok(DatasetMIDI):
             sample_key_name=sample_key_name,
             labels_key_name=labels_key_name,
         )
+
+    def __getitem__(self, idx: int) -> dict[str, LongTensor]:
+        """
+        Return the ``idx`` elements of the dataset.
+
+        If the dataset is pre-tokenized, the method will return the token ids.
+        Otherwise, it will tokenize the ``idx``th file on the fly. If the file to is
+        corrupted, the method will return a dictionary with ``None`` values.
+
+        :param idx: idx of the file/sample.
+        :return: the token ids, with optionally the associated label.
+        """
+        item = super().__getitem__(idx)
+        item[self.labels_key_name] = item[self.sample_key_name].clone()
+        idx_tokens_to_discard = torch.isin(
+            item[self.labels_key_name], self._token_ids_no_loss
+        )
+        item[self.labels_key_name][idx_tokens_to_discard] = -100
+        return item
 
     def _tokenize_score(self, score: Score) -> TokSequence:
         # Delete unused elements in order to compute the bar ticks that we will use,
@@ -169,7 +207,16 @@ class DatasetMMMPreTok(DatasetMIDI):
             if not self.tokenizer.config.use_pitch_bends:
                 track.pitch_bends = []
 
-        # Select specific chunk of about x tokens
+        # Select k tracks (shuffled)
+        # This is done before splitting per note density in order to have the right
+        # estimated token sequence lengths.
+        num_tracks_to_keep = max(
+            1, round(len(score.tracks) * uniform(*self.ratio_random_tracks_range))
+        )
+        tracks = sample(list(score.tracks), k=num_tracks_to_keep)
+        score.tracks = tracks
+
+        # Split the input score into smaller chunks
         score_chunks = split_score_per_note_density(
             score,
             self.max_seq_len,
@@ -177,20 +224,23 @@ class DatasetMMMPreTok(DatasetMIDI):
             num_overlap_bars=0,
             min_seq_len=MIN_SEQ_LEN,
         )
-        # We shuffle them and select the first to be able to select another one in the
-        # case where the chunk is not valid.
         shuffle(score_chunks)
-        score = score_chunks.pop(0)
 
-        # Augment the Score with randomly selected offsets among possible ones and
-        # preprocess it.
-        score = self.augment_and_preprocess_score(score)
-
-        # Special case where the score contained only notes outside the pitch range
-        # that were removed during preprocessing. In this case we try to select another
-        # chunk and if none is valid we return an empty sequence.
+        # Select the chunk to proceed with, augment and preprocess it while making sure
+        # it remains valid. After preprocess, a chunk might contain no more notes if
+        # they were all outside the pitch range of the tokenizer. If it is not, another
+        # chunk is selected until it is or that there are no remaining chunk to select.
+        # It can happen that there are no chunk to select from the beginning if the
+        # original file is too short and the only possible chunk makes less than the
+        # minimum sequence length provided to split_score_per_note_density. In this
+        # case (that should be rare), we return an empty sequence.
+        score.tracks = []  # delete them to enter the loop
         while len(score.tracks) == 0 and len(score_chunks) > 0:
+            # We select the first to be able to select another one in the case where the
+            # chunk is not valid.
             score = score_chunks.pop(0)
+            # Augment the Score with randomly selected offsets among possible ones and
+            # preprocess it.
             score = self.augment_and_preprocess_score(score)
         if len(score.tracks) == 0:
             return TokSequence(
@@ -200,13 +250,6 @@ class DatasetMMMPreTok(DatasetMIDI):
                 ],
                 tokens=["Track_Start", "Track_End"],
             )
-
-        # Select k tracks (shuffled)
-        num_tracks_to_keep = max(
-            1, round(len(score.tracks) * uniform(*self.ratio_random_tracks_range))
-        )
-        tracks = sample(list(score.tracks), k=num_tracks_to_keep)
-        score.tracks = tracks
 
         # Randomly create attribute controls indexes
         ac_indexes = None
