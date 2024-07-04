@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import miditok
+from miditok.attribute_controls import AttributeControl, BarAttributeControl
 
 from .utils import path_main_data_directory
 
@@ -65,6 +66,39 @@ class TokenizationConfig:
     tokenization: str
     tokenizer_config: miditok.TokenizerConfig
     vocab_size: int = None
+
+@dataclass
+class InferenceConfig:
+    """
+    Specifies which bars will be infilled and which tracks will be generated. It also specifies
+    the list of attribute controls to control the generation.
+
+    :param bars_to_generate: dictionary of couples [track_idx, [bar_start, bar_end, list of Attribute Controls],
+    where bar_start and bar_end are the extremes of the region to infill.
+    :param conditioning_tracks: list of indexes of tracks used to condition the generation.
+    :param new_tracks: list of tuple containing the programs and attribute controls for the new tracks
+    """
+
+    bars_to_generate: dict[int, tuple[int, int, list[BarAttributeControl]]]
+    new_tracks: list[tuple[int, list[AttributeControl]]]
+
+    def __post_init__(self):
+        """
+        Checks that the Inference config is consistent
+        """
+        self.context_tracks = self.bars_to_generate.keys()
+
+        # Set autoregressive flag
+        if len(self.new_tracks) > 0:
+            self.autoregressive = True
+
+        # Valid program number
+        for program, _ in self.new_tracks:
+            if program < 0 or program > 127:
+                raise ValueError(f"Invalid program number {program}> Must be in range [0,127]")
+
+        if len(self.bars_to_generate) == 0 and len(self.new_tracks) == 0:
+            raise ValueError(f"You must provide either tracks to infill or new tracks to be generated!")
 
 
 @dataclass

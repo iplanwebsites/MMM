@@ -2,12 +2,22 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional, Callable, List, Union
 
 import torch
 from torch.nn import CrossEntropyLoss
-from transformers import MistralConfig, MistralForCausalLM
+from transformers import MistralConfig, MistralForCausalLM, GenerationConfig, LogitsProcessorList, StoppingCriteriaList
+from transformers.generation.utils import GenerateOutput
 from transformers.modeling_outputs import CausalLMOutputWithPast
+from utils.classes import InferenceConfig
+from miditok import TokSequence
+from miditok.attribute_controls import BarAttributeControl, AttributeControl
+
+import numpy as np
+
+from utils.constants import (
+    GENERATION_CONFIG_PARAMS
+)
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -33,6 +43,7 @@ class MMM(MistralForCausalLM):
         self, config: MistralConfig, tokenizer: MusicTokenizer | None = None
     ) -> None:
         super().__init__(config)
+        self.generation_config = GenerationConfig(**GENERATION_CONFIG_PARAMS)
         if tokenizer:
             # Register attribute controls tokens
             for ac in tokenizer.attribute_controls:
@@ -140,20 +151,47 @@ class MMM(MistralForCausalLM):
             attentions=outputs.attentions,
         )
 
-    def generate_new_track(self, score: Score, program: int) -> None:
-        """
-        Generate a new track of a given Score.
+    def generate(
+        self,
+        inputs: Optional[torch.Tensor] = None,
+        generation_config: Optional[GenerationConfig] = None,
+        logits_processor: Optional[LogitsProcessorList] = None,
+        stopping_criteria: Optional[StoppingCriteriaList] = None,
+        prefix_allowed_tokens_fn: Optional[Callable[[int, torch.Tensor], List[int]]] = None,
+        synced_gpus: Optional[bool] = None,
+        assistant_model: Optional["PreTrainedModel"] = None,
+        streamer: Optional["BaseStreamer"] = None,
+        negative_prompt_ids: Optional[torch.Tensor] = None,
+        negative_prompt_attention_mask: Optional[torch.Tensor] = None,
+        inference_config: InferenceConfig = None,
+        score: Score = None,
+        **kwargs,
+    ) -> Union[GenerateOutput, torch.LongTensor]:
 
-        The new track will be generated with the model and
-        TODO might need to provide a few additional arguments like a GenerationConfig
+        if inference_config.autoregressive:
+            for track in inference_config.new_tracks:
+                self.generate_new_track(self, track, score)
+        else:
+            self.generate_infilling(score, inference_config)
 
-        :param score: ``symusic.Score`` to generate a new track from.
-        :param program: program of the track to generate. Give ``-1`` for drums.
+    def generate_new_track(self, track: tuple[int, list[AttributeControl]], score: Score):
         """
-        # TODO implement: tokenize --> inject Infilling --> generate --> detok...
+               Generate a new track of a given Score.
+
+               The new track will be generated with the model and
+
+               :param track: tuple containing the program of the track and a list of Track Attribute Controls
+               :param score: symusic.Score
+               """
+        #In this case, the prompt is the whole toksequence
+        input_seq = self.tokenizer.encode(score)
+        #TODO: Add <TRACK_START> <PROGRAM> and attribute controls tokens,
+
+        #TODO: Should add the stopping condition for generation
+        super().generate(torch.tensor(input_seq.ids), self.generation_config)
 
     def generate_infilling(
-        self, score: Score, bar_idx: tuple[int, int], track_idx: Sequence[int]
+            self, score: Score, inference_config: InferenceConfig
     ) -> None:
         """
         Generate a new portion of a ``symusic.Score``.
@@ -164,7 +202,103 @@ class MMM(MistralForCausalLM):
         TODO might need to provide a few additional arguments like a GenerationConfig
 
         :param score: ``symusic.Score`` to generate a new track from.
-        :param bar_idx: tuple of bar numbers of the portion of the score to infill.
-        :param track_idx: indexes of the tracks to infill.
+        :param inference_config: InferenceConfig
         """
-        # TODO implement: tokenize --> inject Infilling --> generate --> detok...
+        tracks_to_infill = inference_config.bars_to_generate.keys()
+        for track_to_infill in tracks_to_infill:
+
+            updated_score = self.infill_track(track_to_infill, inference_config, score)
+
+
+        #TODO:After all these steps the score should have all the generated content, convert this back to midi
+
+    def infill_track(
+            self, track_idx: int, inference_config: InferenceConfig, score: Score
+    ) -> Score:
+        """
+        Inner step function called by higher-level generate fuctions
+
+        The step is used to extract the correct token sequence form the previous
+        generation's result (or initial sequence if first step)
+
+        :param track_idx: index of the track to infill
+        :param score: symusic.Score of the MIDI input file
+
+        :return: StepResult of current step
+        """
+
+        input_seq = self.generate_infill_prompt(track_idx, inference_config, score)
+
+        #TODO: generate the output from the input sequence. I think it's needed to override the generation method as we
+        # want to generate multiple tokens until we fill the whole bars
+
+        n_bars = inference_config.bars_to_generate[track_idx][1] - inference_config.bars_to_generate[track_idx][0]
+        output = self._generate_infill_output(input_seq, n_bars)
+
+        #TODO: Get toksequence from output
+
+        #TODO: Update score with the new infilled track
+        result = ...
+
+        return result
+
+    def generate_infill_prompt(self, track_idx: int, inference_config: InferenceConfig, score: Score) -> TokSequence:
+        """
+        Constructs the prompt to be used as model input
+        """
+
+        #TODO:Need to add a reference to the tokenizer (?)
+        tokens = self.tokenizer.encode(score, concatenate_track_sequences = False)
+
+        output_toksequence: TokSequence
+        for context_track_idx in inference_config.context_tracks:
+            # If the track is the one to infill
+            if context_track_idx == track_idx:
+                start_bar_idx = inference_config.bars_to_generate[track_idx][0]
+                end_bar_idx = inference_config.bars_to_generate[track_idx][1]
+
+                bars_ticks = tokens[track_idx]._ticks_bars
+                bar_tick_start = bars_ticks[start_bar_idx]
+                bar_tick_end = bars_ticks[end_bar_idx]
+
+                times = np.array([event.time for event in tokens[track_idx].events])
+
+                token_idx_start = np.nonzero(times >= bar_tick_start)[0]
+                token_idx_start = token_idx_start[0]
+
+                token_idx_end = np.nonzero(times >= bar_tick_end)[0]
+                token_idx_end = token_idx_end[0]
+
+                seq_before = tokens[track_idx][:token_idx_start]
+                for _ in range(start_bar_idx - end_bar_idx):
+                    seq_before.ids.append(self._infill_bar_token_id)
+                    seq_before.tokens.append(self._infill_bar_token)
+                seq_after = tokens[track_idx][token_idx_end:]
+                output_toksequence += seq_before + seq_after
+
+
+            output_toksequence += tokens[context_track_idx]
+
+        #TODO:Add <START_FILL> token
+        #TODO:Add attribute controls tokens
+        attribute_controls = inference_config.bars_to_generate[track_idx][2]
+
+        return output_toksequence
+
+    def _generate_infill_output(self, input_seq: TokSequence, n_bars: int):
+        """
+        Function that given a BAR_FILL representation of the input sequence, generates the content of the bars to
+        infill. The sequence should look like <TRACK_START>...<TRACK_END>...<TRACKS_START>...<FILL_IN>...<FILL_IN>...
+        <TRACK_END>...<TRACK_START>...<TRACK_END><START_FILL>. Where we have as many <FILL_IN> tokens as the number of
+        bars we want to infill
+
+        As output, we get the same tokensequence but with the generated content <START_FILL>...<END_FILL>,
+        <START_FILL>...<END_FILL> n times as the number of bars
+
+        :param input_seq: the input tokensequence to infill
+        :param n_bars: number of bars to infill
+        """
+        bars_generated = 0
+        for bi in range(n_bars):
+            logits = super().generate(torch.tensor(input_seq.ids), self.generation_config)
+
