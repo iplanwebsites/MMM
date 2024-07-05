@@ -16,7 +16,7 @@ def is_score_valid(score: Score, min_num_bars: int, min_num_notes: int) -> bool:
     :return: boolean indicating if ``score`` is valid.
     """
     return (
-        len(get_bars_ticks(score)) >= min_num_bars and score.num_notes > min_num_notes
+        len(get_bars_ticks(score)) >= min_num_bars and score.note_num() > min_num_notes
     )
 
 
