@@ -299,6 +299,7 @@ class DatasetMMMPreTok(DatasetMIDI):
 
             # Extract token sections of the bars to infill for each track/seq
             # We do not select tracks that end before bar_tick_start
+            # TODO done on one track only
             sequences_idx_pop = [
                 si
                 for si, sequence in enumerate(sequences)
