@@ -1,4 +1,5 @@
 """Constants file."""
+
 from torch.backends.mps import is_available as mps_available
 from torch.cuda import is_available as cuda_available
 from torch.cuda import is_bf16_supported

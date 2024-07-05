@@ -2,7 +2,6 @@
 
 """Train the MMM model."""
 
-
 if __name__ == "__main__":
     from argparse import ArgumentParser
 
