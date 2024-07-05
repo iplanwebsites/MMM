@@ -1,6 +1,26 @@
 # MMM
 Multi-track music machine implementation
 
+## Usage example
+
+```Python
+from pathlib import Path
+from mmm import MMM  # model
+from miditok import MMM as MMM_T  # tokenizer
+from symusic import Score  # MIDI file parsing
+
+# Creating the model and the tokenizer
+model = MMM.from_pretrained("metacreation/MMM")
+tokenizer = MMM_T.from_pretrained("metacreation/MMM")
+
+# Loading a MIDI file
+score = Score(Path("to", "file.mid"))
+tokens = tokenizer(score)
+# TODO complete inference example
+# gen_tokens = model.generate
+# gen_score = tokenizer.decode(gen_tokens)
+```
+
 ## Steps to reproduce
 
 Before running these commands, make sure to load a virtual Python environment if needed.
