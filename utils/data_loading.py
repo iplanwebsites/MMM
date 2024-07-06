@@ -305,7 +305,10 @@ class DatasetMMMPreTok(DatasetMIDI):
                 if sequence.events[-1].time > bar_tick_start
             ]
             si = seq_idx_pop[
-                round(len(seq_idx_pop) * uniform(*self.bar_masking_tracks_ratio_range))
+                round(
+                    (len(seq_idx_pop) - 1)
+                    * uniform(*self.bar_masking_tracks_ratio_range)
+                )
             ]
 
             times = np.array([event.time for event in sequences[si].events])
