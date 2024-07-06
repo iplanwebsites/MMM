@@ -12,13 +12,13 @@
 #SBATCH --ntasks-per-node=1  # nb of tasks per node
 #SBATCH --gpus-per-node=a100:4
 #SBATCH --cpus-per-task=48   # nb of CPU cores per task
-#SBATCH --mem-per-cpu=10G
+#SBATCH --mem=40G
 #SBATCH --time=24:00:00
 
 # Define args
 MODEL_TRAIN_ARGS=" \
     --deepspeed \
-    --per-device-batch-size 8 \
+    --per-device-batch-size-train 8 \
     --per-device-batch-size-test 16 \
     "
 
