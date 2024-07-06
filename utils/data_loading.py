@@ -297,68 +297,48 @@ class DatasetMMMPreTok(DatasetMIDI):
                 bars_ticks[bar_idx_end] if bar_idx_end < len(bars_ticks) else None
             )
 
-            # Extract token sections of the bars to infill for each track/seq
+            # Extract token section of the bars to infill
             # We do not select tracks that end before bar_tick_start
-            # TODO done on one track only
-            sequences_idx_pop = [
+            seq_idx_pop = [
                 si
                 for si, sequence in enumerate(sequences)
                 if sequence.events[-1].time > bar_tick_start
             ]
-            tracks_bars_infill_indexes = sample(
-                sequences_idx_pop,
-                k=max(
-                    1,
-                    round(
-                        len(sequences_idx_pop)
-                        * uniform(*self.bar_masking_tracks_ratio_range)
-                    ),
-                ),
-            )
-            extracted_seqs = []
-            for si in tracks_bars_infill_indexes:
-                times = np.array([event.time for event in sequences[si].events])
-                if bar_tick_start == 0:
-                    # excluding Track_Start and attribute control token
-                    token_idx_start = 0
-                    while sequences[si].events[token_idx_start].type_ != "Bar":
-                        token_idx_start += 1
-                else:
-                    token_idx_start = np.nonzero(times >= bar_tick_start)[0]
-                    token_idx_start = token_idx_start[0]
-                if bar_tick_end is None:
-                    # excluding Track_End and attribute control token
-                    token_idx_end = -2
-                else:
-                    token_idx_end = np.nonzero(times >= bar_tick_end)[0]
-                    token_idx_end = token_idx_end[0] if len(token_idx_end) > 0 else -2
+            si = seq_idx_pop[
+                round(len(seq_idx_pop) * uniform(*self.bar_masking_tracks_ratio_range))
+            ]
 
-                # Add track start/end + Program for the extracted bars sections
-                program = sequences[si].events[1].value
-                seq_infill = sequences[si][token_idx_start:token_idx_end]
-                seq_infill.ids.insert(0, self.tokenizer.vocab[f"Program_{program}"])
-                seq_infill.tokens.insert(0, f"Program_{program}")
-                seq_infill.ids.insert(0, self.tokenizer.vocab["Track_Start"])
-                seq_infill.tokens.insert(0, "Track_Start")
-                seq_infill.ids.append(self.tokenizer.vocab["Track_End"])
-                seq_infill.tokens.append("Track_End")
-                extracted_seqs.append(seq_infill)
+            times = np.array([event.time for event in sequences[si].events])
+            if bar_tick_start == 0:
+                # excluding Track_Start and attribute control token
+                token_idx_start = 0
+                while sequences[si].events[token_idx_start].type_ != "Bar":
+                    token_idx_start += 1
+            else:
+                token_idx_start = np.nonzero(times >= bar_tick_start)[0]
+                token_idx_start = token_idx_start[0]
+            if bar_tick_end is None:
+                # excluding Track_End and attribute control token
+                token_idx_end = -2
+            else:
+                token_idx_end = np.nonzero(times >= bar_tick_end)[0]
+                token_idx_end = token_idx_end[0] if len(token_idx_end) > 0 else -2
 
-                # Add BarInfill tokens + update sequences
-                seq_before = sequences[si][:token_idx_start]
-                for _ in range(bar_section_length):
-                    seq_before.ids.append(self._infill_bar_token_id)
-                    seq_before.tokens.append(self._infill_bar_token)
-                seq_after = sequences[si][token_idx_end:]
-                sequences[si] = seq_before + seq_after
+            # Extract the tokens of the section to infill and add BarFill start/end
+            seq_infill = sequences[si][token_idx_start:token_idx_end]
+            seq_infill.ids.insert(0, self._infill_bar_start_token_id)
+            seq_infill.tokens.insert(0, self._infill_bar_start_token)
+            seq_infill.ids.append(self._infill_bar_end_token_id)
+            seq_infill.tokens.append(self._infill_bar_end_token)
+            sequences.append(seq_infill)
 
-            # Add BarFill start/end
-            extracted_seqs = concat_tokseq(extracted_seqs)
-            extracted_seqs.ids.insert(0, self._infill_bar_start_token_id)
-            extracted_seqs.tokens.insert(0, self._infill_bar_start_token)
-            extracted_seqs.ids.append(self._infill_bar_end_token_id)
-            extracted_seqs.tokens.append(self._infill_bar_end_token)
-            sequences.append(extracted_seqs)
+            # Add BarInfill tokens + update sequences
+            seq_before = sequences[si][:token_idx_start]
+            for _ in range(bar_section_length):
+                seq_before.ids.append(self._infill_bar_token_id)
+                seq_before.tokens.append(self._infill_bar_token)
+            seq_after = sequences[si][token_idx_end:]
+            sequences[si] = seq_before + seq_after
 
         # TODO External labels: (non-)expressive, loops, genres to add to the seq
 
