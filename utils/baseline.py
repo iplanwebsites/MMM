@@ -98,6 +98,10 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 
+attn_implem = "flash_attention_2" if "flash_attn" in sys.modules else None
+dtype = torch.bfloat16 if BF16 else torch.float16 if FP16 else torch.float32
+
+
 class MMMBaseline(Baseline):
     """MMM model baseline."""
 
@@ -127,18 +131,18 @@ class MMMBaseline(Baseline):
             pad_on_left=pad_on_left,
         )
 
-    def create_model(self, pretrained: str | None = None, **kwargs) -> MMM:
+    def create_model(self, pretrained: str | None = None) -> MMM:
         """
         Create the model of the baseline.
 
         :param pretrained: path of the model to load. If ``None`` is given, the model is
             created untrained. (default: ``None``)
-        :param kwargs: any additional keyword arguments that should be provided.
         """
         if pretrained is not None:
             model = AutoModelForCausalLM.from_pretrained(
                 pretrained,
-                **kwargs,
+                attn_implementation=attn_implem,
+                torch_dtype=dtype,
             )
         else:
             model = MMM(self.model_config, self.tokenizer)
@@ -210,8 +214,6 @@ data_config = DataConfig(
 tok_config = TokenizationConfig(
     "MMM", TokenizerConfig(**deepcopy(TOKENIZER_PARAMS)), VOCAB_SIZE
 )
-attn_implem = "flash_attention_2" if "flash_attn" in sys.modules else None
-dtype = torch.bfloat16 if BF16 else torch.float16 if FP16 else torch.float32
 model_config = MistralConfig(  # TODO mixtral?
     vocab_size=VOCAB_SIZE,
     hidden_size=EMBEDDING_SIZE,
