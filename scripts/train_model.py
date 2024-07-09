@@ -19,13 +19,13 @@ if __name__ == "__main__":
     parser.set_defaults(deepspeed=False)
     parser.set_defaults(torch_compile=True)
     parser.add_argument(
-        "--per-device-batch-size-train",
+        "--per-device-train-batch-size",
         type=int,
         required=False,
         default=None,
     )
     parser.add_argument(
-        "--per-device-batch-size-test",
+        "--per-device-eval-batch-size",
         type=int,
         required=False,
         default=None,
@@ -41,7 +41,7 @@ if __name__ == "__main__":
         mmm.training_config_kwargs["hub_token"] = args["hf_token"]
     if args["deepspeed"]:
         mmm.training_config_kwargs["deepspeed"] = "slurm/ds_config.json"
-    for attr in ("per_device_batch_size_train", "per_device_batch_size_test"):
+    for attr in ("per_device_train_batch_size", "per_device_eval_batch_size"):
         if args[attr]:
             mmm.training_config_kwargs[attr] = args[attr]
     mmm.training_config_kwargs["torch_compile"] = args["torch_compile"]

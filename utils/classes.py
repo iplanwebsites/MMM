@@ -276,13 +276,12 @@ class Baseline(ABC):
         """
         return self.tokenizer.special_tokens_ids
 
-    def create_model(self, pretrained: str | None = None, **kwargs) -> PreTrainedModel:
+    def create_model(self, pretrained: str | None = None) -> PreTrainedModel:
         """
         Create the model of the baseline.
 
         :param pretrained: path of the model to load. If ``None`` is given, the model is
             created untrained.
-        :param kwargs: any additional keyword arguments that should be provided.
         """
         raise NotImplementedError
 

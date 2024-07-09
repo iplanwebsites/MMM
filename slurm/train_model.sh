@@ -18,8 +18,8 @@
 # Define args
 MODEL_TRAIN_ARGS=" \
     --deepspeed \
-    --per-device-batch-size-train 8 \
-    --per-device-batch-size-test 16 \
+    --per-device-train-batch-size 8 \
+    --per-device-eval-batch-size 16 \
     "
 
 # Output GPUs and ram info
@@ -41,6 +41,12 @@ export HF_HOME=$SCRATCH/.hf_cache
 export HF_METRICS_OFFLINE=1
 export TRANSFORMERS_OFFLINE=1
 export OMP_NUM_THREADS=1
+# The below variable is required to avoid a warning with the hf tokenizers lib and multiprocessing
+# Weirdly, the tokenizer lib is used somewhere before that the dataloader create several workers,
+# even when average_num_tokens_per_note is hardcoded in the Dataset class
+# https://github.com/huggingface/transformers/issues/5486
+# best explanation: https://stackoverflow.com/questions/62691279/how-to-disable-tokenizers-parallelism-true-false-warning/72926996#72926996
+export TOKENIZERS_PARALLELISM=0
 
 # Set launcher command with params
 export LAUNCHER="torchrun \
