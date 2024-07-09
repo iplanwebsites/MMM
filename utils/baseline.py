@@ -7,6 +7,7 @@ import sys
 from copy import deepcopy
 from typing import TYPE_CHECKING
 
+import torch
 from miditok import TokenizerConfig
 from miditok.pytorch_data import DataCollator
 from transformers import (
@@ -210,6 +211,7 @@ tok_config = TokenizationConfig(
     "MMM", TokenizerConfig(**deepcopy(TOKENIZER_PARAMS)), VOCAB_SIZE
 )
 attn_implem = "flash_attention_2" if "flash_attn" in sys.modules else None
+dtype = torch.bfloat16 if BF16 else torch.float16 if FP16 else torch.float32
 model_config = MistralConfig(  # TODO mixtral?
     vocab_size=VOCAB_SIZE,
     hidden_size=EMBEDDING_SIZE,
@@ -221,6 +223,7 @@ model_config = MistralConfig(  # TODO mixtral?
     sliding_window=SLIDING_WINDOWS,
     use_cache=False,  # for gradient checkpointing during training
     attn_implementation=attn_implem,
+    torch_dtype=dtype,
 )
 generation_config = GenerationConfig(
     max_new_tokens=NUM_INFERENCES_EVAL,

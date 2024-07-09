@@ -29,7 +29,7 @@ nvidia-smi topo -m
 free -h
 
 # Hardware vars
-GPUS_PER_NODE=8
+GPUS_PER_NODE=4
 MASTER_ADDR=$(scontrol show hostnames "$SLURM_JOB_NODELIST" | head -n 1)
 MASTER_PORT=9902
 echo "Master addr: $MASTER_ADDR"
@@ -40,7 +40,7 @@ export PYTHONPATH=$HOME/MMM
 export HF_HOME=$SCRATCH/.hf_cache
 export HF_METRICS_OFFLINE=1
 export TRANSFORMERS_OFFLINE=1
-#export OMP_NUM_THREADS=1
+export OMP_NUM_THREADS=1
 
 # Set launcher command with params
 export LAUNCHER="torchrun \
@@ -59,6 +59,6 @@ source .venv/bin/activate
 # pip install flash-attn --no-build-isolation
 
 # Run the training
-srun --jobid "$SLURM_JOBID" bash -c "$LAUNCHER exp_generation.py $MODEL_TRAIN_ARGS"
+srun --jobid "$SLURM_JOBID" bash -c "$LAUNCHER scripts/train_model.py $MODEL_TRAIN_ARGS"
 
 echo "END TIME: $(date)"
