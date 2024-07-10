@@ -3,8 +3,8 @@ from pathlib import Path
 import numpy as np
 import symusic
 import torch
-from classes import InferenceConfig
-from constants import GENERATION_CONFIG_PARAMS
+from utils.classes import InferenceConfig
+from utils.constants import GENERATION_CONFIG_PARAMS
 from miditok import MMM, TokSequence
 from symusic import Score
 from transformers import GenerationConfig, PreTrainedModel
