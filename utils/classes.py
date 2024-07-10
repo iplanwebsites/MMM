@@ -84,6 +84,9 @@ class InferenceConfig:
         """Checks that the Inference config is consistent."""
         self.context_tracks = self.bars_to_generate.keys()
 
+        if len(self.bars_to_generate) > 0:
+            self.infilling = True
+
         # Set autoregressive flag
         if len(self.new_tracks) > 0:
             self.autoregressive = True
