@@ -55,11 +55,9 @@ TOKENIZER_PARAMS = {
 
 GENERATION_CONFIG_PARAMS = {
     "max_length": 99999, #We have to override this as it is set to 20 tokens max by default!
-    "max_new_tokens": 1, #We generate one token at a time
     "use_cache": True, #To allow reuse of past_key_values to speed up computation
     "temperature": 1.0,
     "top_k": 50, #(default value)
-    "output_logits": True
 }
 
 # TOKENIZER TRAINING PARAMS

@@ -48,10 +48,7 @@ def is_training_done(run_path: Path) -> bool:
     :param run_path: model training directory
     :return: if model has already been fully trained
     """
-    if run_path.exists() and (run_path / "train_results.json").is_file():
-        return True
-
-    return False
+    return bool(run_path.exists() and (run_path / "train_results.json").is_file())
 
 
 def is_testing_done(run_path: Path) -> bool:
@@ -61,10 +58,7 @@ def is_testing_done(run_path: Path) -> bool:
     :param run_path: model training directory
     :return: if model has already been fully trained
     """
-    if run_path.exists() and (run_path / "test_results.json").is_file():
-        return True
-
-    return False
+    return bool(run_path.exists() and (run_path / "test_results.json").is_file())
 
 
 def get_checkpoints_paths(path: Path) -> list[Path]:
