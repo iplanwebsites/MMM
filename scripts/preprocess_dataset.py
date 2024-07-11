@@ -30,10 +30,8 @@ if __name__ == "__main__":
 
     from utils.baseline import mmm
     from utils.constants import (
-        BARS_IDX_RANDOM_RATIO_RANGE,
         MIN_NUM_BARS_FILE_VALID,
         MIN_NUM_NOTES_FILE_VALID,
-        TRACKS_IDX_RANDOM_RATIO_RANGE,
         TRAINING_TOKENIZER_MAX_NUM_FILES,
     )
 
@@ -61,8 +59,6 @@ if __name__ == "__main__":
     iterator = TokTrainingIterator(
         mmm.tokenizer,
         dataset_files_paths_training,
-        TRACKS_IDX_RANDOM_RATIO_RANGE,
-        BARS_IDX_RANDOM_RATIO_RANGE,
     )
     mmm.tokenizer.train(
         vocab_size=mmm.tokenization_config.vocab_size,
