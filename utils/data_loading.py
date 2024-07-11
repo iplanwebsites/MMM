@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 import torch
 from miditok import TokSequence
-from miditok.attribute_controls import create_random_ac_indexes
+from miditok.attribute_controls import BarAttributeControl
 from miditok.data_augmentation.data_augmentation import (
     _filter_offset_tuples_to_score,
     augment_score,
@@ -16,6 +16,7 @@ from miditok.data_augmentation.data_augmentation import (
 from miditok.pytorch_data import DatasetMIDI
 from miditok.utils import (
     get_average_num_tokens_per_note,
+    get_bars_ticks,
     split_score_per_note_density,
 )
 
@@ -81,10 +82,10 @@ class DatasetMMMPreTok(DatasetMIDI):
         which a sample will be "track-filled".
     :param bar_masking_duration_ratio_range: range of the random ratio of bars to mask
         during training when infilling bars.
-    :param bar_masking_tracks_ratio_range: range of ratio of tracks that will be used on
-        a given portion of bars to infill.
     :param bos_token_id: *BOS* token id. (default: ``None``)
     :param eos_token_id: *EOS* token id. (default: ``None``)
+    :param ac_random_ratio_range: range of ratios of number of attribute controls to be
+        used on the portion of bars or track to infill. (default: ``None``)
     :param ac_tracks_random_ratio_range: range of ratios (between 0 and 1 included) of
         tracks to compute attribute controls on. If ``None`` is given, the attribute
         controls will be computed for all the tracks. (default: ``None``)
@@ -106,9 +107,9 @@ class DatasetMMMPreTok(DatasetMIDI):
         data_augmentation_offsets: tuple[int, int, int],
         bar_fill_ratio: float,
         bar_masking_duration_ratio_range: tuple[float, float],
-        bar_masking_tracks_ratio_range: tuple[float, float],
         bos_token_id: int | None = None,
         eos_token_id: int | None = None,
+        ac_random_ratio_range: tuple[float, float] | None = None,
         ac_tracks_random_ratio_range: tuple[float, float] | None = None,
         ac_bars_random_ratio_range: tuple[float, float] | None = None,
         func_to_get_labels: Callable[
@@ -128,7 +129,7 @@ class DatasetMMMPreTok(DatasetMIDI):
         self.duration_offsets = list(range(-duration_offsets, duration_offsets + 1))
         self.bar_fill_ratio = bar_fill_ratio
         self.bar_masking_duration_ratio_range = bar_masking_duration_ratio_range
-        self.bar_masking_tracks_ratio_range = bar_masking_tracks_ratio_range
+        self.ac_random_ratio_range = ac_random_ratio_range
 
         self.average_num_tokens_per_note = get_average_num_tokens_per_note(
             tokenizer, files_paths[:MAX_NUM_FILES_NUM_TOKENS_PER_NOTE]
@@ -159,6 +160,13 @@ class DatasetMMMPreTok(DatasetMIDI):
                 ),
             ]
         )
+
+        self._ac_tracks, self._ac_bars = [], []
+        for i, ac in enumerate(tokenizer.attribute_controls):
+            if isinstance(ac, BarAttributeControl):
+                self._ac_bars.append(i)
+            else:
+                self._ac_tracks.append(i)
 
         super().__init__(
             files_paths,
@@ -213,8 +221,23 @@ class DatasetMMMPreTok(DatasetMIDI):
         num_tracks_to_keep = max(
             1, round(len(score.tracks) * uniform(*self.ratio_random_tracks_range))
         )
-        tracks = sample(list(score.tracks), k=num_tracks_to_keep)
-        score.tracks = tracks
+        score.tracks = sample(list(score.tracks), k=num_tracks_to_keep)
+
+        # Remove time signatures and tempos occurring after the start of the last note
+        max_note_time = 0
+        for track in score.tracks:
+            if len(track.notes) > 0:
+                max_note_time = max(max_note_time, track.notes[-1].time)
+        for ti in reversed(range(len(score.time_signatures))):
+            if score.time_signatures[ti].time > max_note_time:
+                del score.time_signatures[ti]
+            else:
+                break
+        for ti in reversed(range(len(score.tempos))):
+            if score.tempos[ti].time > max_note_time:
+                del score.tempos[ti]
+            else:
+                break
 
         # Split the input score into smaller chunks
         score_chunks = split_score_per_note_density(
@@ -251,33 +274,18 @@ class DatasetMMMPreTok(DatasetMIDI):
                 tokens=["Track_Start", "Track_End"],
             )
 
-        # Randomly create attribute controls indexes
+        # Need to preprocess here to know the number of tracks, i.e. sequences
+        bar_infilling = len(score.tracks) > 1 and random() < self.bar_fill_ratio
+        track_infilling_idx = None
+        bar_tick_start, bar_tick_end, bar_section_length = None, None, None
         ac_indexes = None
-        if self.tracks_idx_random_ratio_range or self.bars_idx_random_ratio_range:
-            ac_indexes = create_random_ac_indexes(
-                score,
-                self.tokenizer.attribute_controls,
-                self.tracks_idx_random_ratio_range,
-                self.bars_idx_random_ratio_range,
-            )
-
-        # Tokenize it
-        sequences = self.tokenizer.encode(
-            score,
-            encode_ids=False,
-            attribute_controls_indexes=ac_indexes,
-            concatenate_track_sequences=False,
-        )
-
-        # If doing bar infilling we place extract the bars and create place the
-        # right infilling tokens
-        # Otherwise (track infilling), there is nothing to do here. If a user wants to
-        # create a new track, we'll just have to add Track_Start and Program tokens at
-        # the end of the sequence and generate from here.
-        if len(sequences) > 1 and random() < self.bar_fill_ratio:
-            # Bar infilling
-            # Determine the portion to infill
-            bars_ticks = sequences[0]._ticks_bars
+        if bar_infilling:
+            track_infilling_idx = choice(list(range(len(score.tracks))))
+            # ac_indexes contains random bar acs only for the section to infill
+            bars_ticks = np.array(get_bars_ticks(score))
+            bars_ticks = bars_ticks[  # remove bars ticks after end of track
+                np.where(bars_ticks <= score.tracks[track_infilling_idx].notes[-1].time)
+            ]
             bar_section_length = max(
                 1,
                 round(
@@ -296,26 +304,44 @@ class DatasetMMMPreTok(DatasetMIDI):
             bar_tick_end = (
                 bars_ticks[bar_idx_end] if bar_idx_end < len(bars_ticks) else None
             )
+        else:
+            # ac_indexes only contains random track acs for the last track
+            acs_idx = sample(
+                population=self._ac_tracks,
+                k=round(
+                    len(self._ac_tracks) * uniform(*self.tracks_idx_random_ratio_range)
+                ),
+            )
+            ac_indexes = {len(score.tracks) - 1: {ac_idx: True for ac_idx in acs_idx}}
 
+        # Tokenize it
+        sequences = self.tokenizer.encode(
+            score,
+            encode_ids=False,
+            no_preprocess_score=True,
+            attribute_controls_indexes=ac_indexes,
+            concatenate_track_sequences=False,
+        )
+
+        # If doing bar infilling we place extract the bars and create place the
+        # right infilling tokens
+        # Otherwise (track infilling), there is nothing to do here. If a user wants to
+        # create a new track, we'll just have to add Track_Start and Program tokens at
+        # the end of the sequence and generate from here.
+        if bar_infilling:
+            # Bar infilling
             # Extract token section of the bars to infill
             # We do not select tracks that end before bar_tick_start
-            seq_idx_pop = [
-                si
-                for si, sequence in enumerate(sequences)
-                if sequence.events[-1].time > bar_tick_start
-            ]
-            si = seq_idx_pop[
-                round(
-                    (len(seq_idx_pop) - 1)
-                    * uniform(*self.bar_masking_tracks_ratio_range)
-                )
-            ]
-
-            times = np.array([event.time for event in sequences[si].events])
+            times = np.array(
+                [event.time for event in sequences[track_infilling_idx].events]
+            )
             if bar_tick_start == 0:
                 # excluding Track_Start and attribute control token
                 token_idx_start = 0
-                while sequences[si].events[token_idx_start].type_ != "Bar":
+                while (
+                    sequences[track_infilling_idx].events[token_idx_start].type_
+                    != "Bar"
+                ):
                     token_idx_start += 1
             else:
                 token_idx_start = np.nonzero(times >= bar_tick_start)[0]
@@ -328,7 +354,7 @@ class DatasetMMMPreTok(DatasetMIDI):
                 token_idx_end = token_idx_end[0] if len(token_idx_end) > 0 else -2
 
             # Extract the tokens of the section to infill and add BarFill start/end
-            seq_infill = sequences[si][token_idx_start:token_idx_end]
+            seq_infill = sequences[track_infilling_idx][token_idx_start:token_idx_end]
             seq_infill.ids.insert(0, self._infill_bar_start_token_id)
             seq_infill.tokens.insert(0, self._infill_bar_start_token)
             seq_infill.ids.append(self._infill_bar_end_token_id)
@@ -336,12 +362,12 @@ class DatasetMMMPreTok(DatasetMIDI):
             sequences.append(seq_infill)
 
             # Add BarInfill tokens + update sequences
-            seq_before = sequences[si][:token_idx_start]
+            seq_before = sequences[track_infilling_idx][:token_idx_start]
             for _ in range(bar_section_length):
                 seq_before.ids.append(self._infill_bar_token_id)
                 seq_before.tokens.append(self._infill_bar_token)
-            seq_after = sequences[si][token_idx_end:]
-            sequences[si] = seq_before + seq_after
+            seq_after = sequences[track_infilling_idx][token_idx_end:]
+            sequences[track_infilling_idx] = seq_before + seq_after
 
         # TODO External labels: (non-)expressive, loops, genres to add to the seq
 
@@ -364,7 +390,6 @@ class DatasetMMMPreTok(DatasetMIDI):
         :param score: score to augment and preprocess.
         :return: the augmented and preprocessed track.
         """
-        score = self.tokenizer.preprocess_score(score)
         pitch_offsets = _filter_offset_tuples_to_score(
             self.pitch_offsets.copy(),
             score,
@@ -377,4 +402,4 @@ class DatasetMMMPreTok(DatasetMIDI):
                 choice(self.velocity_offsets),
                 choice(self.duration_offsets),
             )
-        return score
+        return self.tokenizer.preprocess_score(score)

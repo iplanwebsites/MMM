@@ -16,9 +16,9 @@ from transformers import (
     MistralConfig,
 )
 
-from mmm import MMM
 from utils.classes import Baseline, DataConfig, TokenizationConfig
 from utils.constants import (
+    ACS_RANDOM_RATIO_RANGE,
     BARS_IDX_RANDOM_RATIO_RANGE,
     BATCH_SIZE_PER_DEVICE_TRAIN,
     BATCH_SIZE_PER_DEVICE_VALID,
@@ -63,7 +63,6 @@ from utils.constants import (
     PUSH_TO_HF_HUB,
     RATIO_BAR_INFILLING,
     RATIOS_RANGE_BAR_INFILLING_DURATION,
-    RATIOS_RANGE_BAR_INFILLING_TRACKS,
     REPETITION_PENALTY,
     REPORT_TO,
     SAVE_SAFETENSOR,
@@ -97,6 +96,8 @@ if TYPE_CHECKING:
     from collections.abc import Sequence
     from pathlib import Path
 
+    from transformers import PreTrainedModel
+
 
 attn_implem = "flash_attention_2" if "flash_attn" in sys.modules else None
 dtype = torch.bfloat16 if BF16 else torch.float16 if FP16 else torch.float32
@@ -119,7 +120,7 @@ class MMMBaseline(Baseline):
             self.data_config.data_augmentation_offsets,
             RATIO_BAR_INFILLING,
             RATIOS_RANGE_BAR_INFILLING_DURATION,
-            RATIOS_RANGE_BAR_INFILLING_TRACKS,
+            ac_random_ratio_range=ACS_RANDOM_RATIO_RANGE,
             ac_tracks_random_ratio_range=TRACKS_IDX_RANDOM_RATIO_RANGE,
             ac_bars_random_ratio_range=BARS_IDX_RANDOM_RATIO_RANGE,
         )
@@ -131,21 +132,18 @@ class MMMBaseline(Baseline):
             pad_on_left=pad_on_left,
         )
 
-    def create_model(self, pretrained: str | None = None) -> MMM:
+    def create_model(self, pretrained: str | None = None) -> PreTrainedModel:
         """
         Create the model of the baseline.
 
         :param pretrained: path of the model to load. If ``None`` is given, the model is
             created untrained. (default: ``None``)
         """
+        kwargs = {"attn_implementation": attn_implem, "torch_dtype": dtype}
         if pretrained is not None:
-            model = AutoModelForCausalLM.from_pretrained(
-                pretrained,
-                attn_implementation=attn_implem,
-                torch_dtype=dtype,
-            )
+            model = AutoModelForCausalLM.from_pretrained(pretrained, **kwargs)
         else:
-            model = MMM(self.model_config, self.tokenizer)
+            model = AutoModelForCausalLM.from_config(self.model_config, **kwargs)
         # model = BetterTransformer.transform(model, keep_original_model=False)
         model.generation_config = self.generation_config
         return model
@@ -214,7 +212,7 @@ data_config = DataConfig(
 tok_config = TokenizationConfig(
     "MMM", TokenizerConfig(**deepcopy(TOKENIZER_PARAMS)), VOCAB_SIZE
 )
-model_config = MistralConfig(  # TODO mixtral?
+model_config = MistralConfig(
     vocab_size=VOCAB_SIZE,
     hidden_size=EMBEDDING_SIZE,
     intermediate_size=FEEDFORWARD_SIZE,
