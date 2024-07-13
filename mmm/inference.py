@@ -68,7 +68,7 @@ def generate_new_track(model: PreTrainedModel, tokenizer: MMM, track: tuple[int,
         input_seq.ids.append(tokenizer.vocab[control])
         input_seq.tokens.append(control)
 
-    output_ids = model.generate(torch.tensor(input_seq.ids), GenerationConfig(**GENERATION_CONFIG_PARAMS))
+    output_ids = model.generate(torch.tensor([input_seq.ids]), GenerationConfig(**GENERATION_CONFIG_PARAMS))
 
     output_seq = input_seq
     output_seq.ids = output_ids
@@ -102,7 +102,7 @@ def generate_infilling(
     output_tokens = []
     for track_to_infill in tracks_to_infill:
         output_tokens.append(infill_bars(model, tokenizer, track_to_infill, inference_config,
-                                         input_tokens[track_to_infill]))
+                                         input_tokens))
 
     # Here we use the base tokenizer because output_tokens is a list of TokSequences
     return tokenizer.base_tokenizer._tokens_to_score(output_tokens)
@@ -124,12 +124,12 @@ def infill_bars(
     :param inference_config: contains information about which tracks and bars to generate
     :param tokens: TokSequence of the track to be infilled
 
-    :return: StepResult of current step
+    :return: Infilled TokSequence
     """
 
     input_seq = generate_infill_prompt(tokenizer, track_idx, inference_config, tokens)
 
-    output_ids = model.generate(torch.tensor(input_seq.ids), GenerationConfig(**GENERATION_CONFIG_PARAMS))
+    output_ids = model.generate(torch.tensor([input_seq.ids]), GenerationConfig(**GENERATION_CONFIG_PARAMS))
     output_ids = np.array(output_ids)
 
     # Move the generated content to replace the <FILL_IN> tokens.
@@ -186,7 +186,7 @@ def generate_infill_prompt(tokenizer: MMM, track_idx: int, inference_config: Inf
             token_idx_end = token_idx_end[0]
 
             seq_before = tokens[track_idx][:token_idx_start]
-            for _ in range(start_bar_idx - end_bar_idx):
+            for _ in range(end_bar_idx - start_bar_idx):
                 seq_before.ids.append(tokenizer.vocab["Infill_Bar"])
                 seq_before.tokens.append("Infill_Bar")
             seq_after = tokens[track_idx][token_idx_end:]
