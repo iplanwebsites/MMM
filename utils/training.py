@@ -129,6 +129,10 @@ def whole_training_process(
     # Load data
     set_seed(baseline.seed)  # set before loading checkpoint
     dataset_train, dataset_valid, dataset_test = baseline.create_data_subsets()
+    """from tqdm import tqdm
+
+    for x in tqdm(dataset_train, desc="iterating over dataset"):
+        t = 0"""
     collator = baseline.create_data_collator()
 
     # Train model if not already done

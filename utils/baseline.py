@@ -103,6 +103,7 @@ attn_implem = "flash_attention_2" if "flash_attn" in sys.modules else None
 dtype = torch.bfloat16 if BF16 else torch.float16 if FP16 else torch.float32
 
 
+# TODO seq2seq VS decoder-only
 class MMMBaseline(Baseline):
     """MMM model baseline."""
 
