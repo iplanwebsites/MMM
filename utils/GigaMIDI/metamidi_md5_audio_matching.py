@@ -2,6 +2,7 @@
 
 """Script to compute the MIDI-audio matching for the MetaMIDI dataset."""
 
+import csv
 import json
 from pathlib import Path
 
@@ -13,7 +14,43 @@ from symusic import Score
 from tqdm import tqdm
 
 
-def compute_midi_audio_match(data_path: Path, matches_file_path: Path) -> None:
+def list_valid_midi_files(data_path: Path, matches_file_path: Path) -> None:
+    """
+    Load MIDI files and saves the list of valid ones.
+
+    This is done to allow to compute the match on clusters that do not have the data.
+
+    :param data_path: path containing the data to load.
+    :param matches_file_path: path to the MIDI - audio matches file.
+    """
+    # Reads the MIDI-audio matches file and keeps valid MIDIS for matching
+    with matches_file_path.open() as matches_file:
+        matches_file.seek(0)
+        next(matches_file)  # first line skipped
+        midis = [
+            line.split()[0]
+            for line in tqdm(
+                matches_file, desc="Reading MMD match file / building the graph"
+            )
+        ]
+
+    # Removing invalid MIDIS
+    midis = list(set(midis))
+    midis_valid = []
+    for midi_md5 in tqdm(midis, desc="Checking MIDIs are valid"):
+        try:
+            _ = Score(data_path / midi_id_to_path(midi_md5))
+            midis_valid.append(midi_md5)
+        except SCORE_LOADING_EXCEPTION:
+            continue
+
+    with (matches_file_path.parent / "valid_midi_md5s.csv").open("w") as f:
+        writer = csv.writer(f)
+        for md5 in midis_valid:
+            writer.writerow([md5])
+
+
+def compute_midi_audio_match(matches_file_path: Path) -> None:
     """
     Clean the MMD dataset in order to keep one MIDI entry per audio entry.
 
@@ -22,12 +59,17 @@ def compute_midi_audio_match(data_path: Path, matches_file_path: Path) -> None:
     distinct MIDIs and audios.
     The selected MIDIs will be saved in a json file to be used to tokenize them
 
-    :param data_path: path containing the data to load.
     :param matches_file_path: path to the MIDI - audio matches file.
     """
+    # Load the valid MIDI md5s
+    midi_valid_md5s = set()
+    with (matches_file_path.parent / "valid_midi_md5s.csv").open() as file:
+        csv_reader = csv.reader(file)
+        for row in csv_reader:
+            midi_valid_md5s.add(row[0])
+
     # Reads the MIDI-audio matches file and keeps valid MIDIS for matching
     b = nx.Graph()
-    midis = []  # stores all midi filenames (md5s) for validation below
     with matches_file_path.open() as matches_file:
         matches_file.seek(0)
         next(matches_file)  # first line skipped
@@ -35,19 +77,19 @@ def compute_midi_audio_match(data_path: Path, matches_file_path: Path) -> None:
             matches_file, desc="Reading MMD match file / building the graph"
         ):
             midi_md5, score, audio_sid = line.split()
-            midis.append(midi_md5)
-            b.add_node(midi_md5, bipartite=0)
-            b.add_node(audio_sid, bipartite=1)
-            b.add_edge(midi_md5, audio_sid, weight=1 - float(score))
+            if midi_md5 in midi_valid_md5s:
+                b.add_node(midi_md5, bipartite=0)
+                b.add_node(audio_sid, bipartite=1)
+                b.add_edge(midi_md5, audio_sid, weight=1 - float(score))
 
-    # Removing invalid MIDIS
+    """# Removing invalid MIDIS
     midis = list(set(midis))
     for midi_md5 in tqdm(midis, desc="Checking MIDIs are valid"):
         try:
             _ = Score(data_path / midi_id_to_path(midi_md5))
         except SCORE_LOADING_EXCEPTION:
             b.remove_node(midi_md5)
-    b.remove_nodes_from(list(nx.isolates(b)))
+    b.remove_nodes_from(list(nx.isolates(b)))"""
 
     # Computes matchings
     sub_graphs = [
@@ -108,7 +150,7 @@ def match(graph: nx.Graph) -> dict:
 if __name__ == "__main__":
     from utils.utils import path_main_data_directory
 
-    mmd_path = path_main_data_directory() / "MMD"
     matches_path = path_main_data_directory() / "MMD_METADATA" / "MMD_audio_matches.tsv"
 
-    compute_midi_audio_match(mmd_path, matches_path)
+    # list_valid_midi_files(path_main_data_directory() / "MMD", matches_path)
+    compute_midi_audio_match(matches_path)
