@@ -1,6 +1,8 @@
 #!/bin/bash
 
 #SBATCH --job-name=unzip-data
+#SBATCH --output=logs/unzip-data.out
+#SBATCH --error=logs/unzip-data_err.out
 #SBATCH --time=20:00:00
 #SBATCH --account=def-pasquier
 #SBATCH --mail-user=raa60@sfu.ca # Default mail

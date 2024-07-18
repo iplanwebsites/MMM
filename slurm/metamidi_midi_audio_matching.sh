@@ -9,7 +9,7 @@
 #SBATCH --nodes=1            # total nb of nodes
 #SBATCH --ntasks-per-node=1  # nb of tasks per node
 #SBATCH --cpus-per-task=16    # nb of CPU cores per task
-#SBATCH --mem=64G
+#SBATCH --mem=1600G
 #SBATCH --time=24:00:00
 
 # Output ram info
