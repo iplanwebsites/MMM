@@ -23,16 +23,23 @@ _SUBSETS = ["music", "drums"]
 _SPLITS = ["train", "validation", "test"]
 _BASE_DATA_DIR = "data/"
 _N_SHARDS_FILE = _BASE_DATA_DIR + "n_shards.json"
-_MUSIC_PATH = _BASE_DATA_DIR + "{subset}/{split}/{subset}_{split}_part_{n_shard}.tar.gz"
+_MUSIC_PATH = (
+    _BASE_DATA_DIR + "{subset}/{split}/GigaMIDI_{subset}_{split}_{n_shard}.tar"
+)
 _METADATA_PATH = _BASE_DATA_DIR + "{subset}/metadata_{subset}_{split}.tsv"
-_METADATA_FEATURES = [
-    "raw_text",
-    "normalized_text",
-    "speaker_id",
-    "gender",
-    "is_gold_transcript",
-    "accent",
-]
+_METADATA_FEATURES = {
+    "drums": datasets.Value("bool"),
+    "sid_matches": datasets.Sequence(datasets.Value("string")),
+    "sid_matched": datasets.Value("string"),
+    "mbid_matches": datasets.Sequence(datasets.Value("string")),
+    "mbid_matched": datasets.Value("string"),
+    "genres_scraped": datasets.Sequence(datasets.Value("string")),
+    "genres_discogs": datasets.Sequence(datasets.Value("string")),
+    "genres_tagtraum": datasets.Sequence(datasets.Value("string")),
+    "genres_lastfm": datasets.Sequence(datasets.Value("string")),
+    "interpreted": datasets.Value("string"),
+    "loop": datasets.Value("string"),
+}
 _VERSION = "1.0.0"
 
 
@@ -77,10 +84,7 @@ class GigaMIDI(datasets.GeneratorBasedBuilder):
             {
                 "music_id": datasets.Value("string"),
                 "music": datasets.Music(),
-                "drums": datasets.ClassLabel(names=_SUBSETS),
-                "interpreted": datasets.Value("string"),
-                "loop": datasets.Value("string"),
-                # TODO musicbrainz id match scores
+                **_METADATA_FEATURES,
             }
         )
         return datasets.DatasetInfo(
