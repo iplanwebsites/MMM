@@ -28,17 +28,26 @@ _MUSIC_PATH = (
 )
 _METADATA_PATH = _BASE_DATA_DIR + "{subset}/metadata_{subset}_{split}.tsv"
 _METADATA_FEATURES = {
-    "drums": datasets.Value("bool"),
-    "sid_matches": datasets.Sequence(datasets.Value("string")),
-    "sid_matched": datasets.Value("string"),
+    "sid_matches": datasets.Sequence(
+        datasets.Sequence(
+            {"sid": datasets.Value("string"), "score": datasets.Value("float16")}
+        )
+    ),
+    # "sid_matched": datasets.Value("string"),
     "mbid_matches": datasets.Sequence(datasets.Value("string")),
-    "mbid_matched": datasets.Value("string"),
+    # "mbid_matched": datasets.Value("string"),
     "genres_scraped": datasets.Sequence(datasets.Value("string")),
-    "genres_discogs": datasets.Sequence(datasets.Value("string")),
-    "genres_tagtraum": datasets.Sequence(datasets.Value("string")),
-    "genres_lastfm": datasets.Sequence(datasets.Value("string")),
-    "interpreted": datasets.Value("string"),
-    "loop": datasets.Value("string"),
+    "genres_discogs": datasets.Sequence(
+        {"genre": datasets.Value("string"), "count": datasets.Value("int16")}
+    ),
+    "genres_tagtraum": datasets.Sequence(
+        {"genre": datasets.Value("string"), "count": datasets.Value("int16")}
+    ),
+    "genres_lastfm": datasets.Sequence(
+        {"genre": datasets.Value("string"), "count": datasets.Value("int16")}
+    ),
+    "median_metric_depth": datasets.Sequence(datasets.Value("int16")),
+    # "loops": datasets.Value("string"),
 }
 _VERSION = "1.0.0"
 
@@ -82,8 +91,9 @@ class GigaMIDI(datasets.GeneratorBasedBuilder):
     def _info(self) -> datasets.DatasetInfo:
         features = datasets.Features(
             {
-                "music_id": datasets.Value("string"),
-                "music": datasets.Music(),
+                "md5": datasets.Value("string"),
+                "music": datasets.Music(),  # TODO test binary
+                "is_drums": datasets.Value("bool"),
                 **_METADATA_FEATURES,
             }
         )
@@ -182,7 +192,7 @@ class GigaMIDI(datasets.GeneratorBasedBuilder):
                 music_shards[subset], local_extracted_shards_paths[subset]
             ):
                 for music_file_name, music_file in music_shard:
-                    music_id = music_file_name.stem
+                    md5 = music_file_name.stem
                     path = (
                         local_extracted_shard_path / music_file_name
                         if local_extracted_shard_path
@@ -190,13 +200,13 @@ class GigaMIDI(datasets.GeneratorBasedBuilder):
                     )
 
                     yield (
-                        music_id,
+                        md5,
                         {
-                            "music_id": music_id,
+                            "md5": md5,
                             "music": {"path": path, "bytes": music_file.read()},
-                            "drums": is_drums,
+                            "is_drums": is_drums,
                             **{
-                                feature: metadata[music_id][feature]
+                                feature: metadata[md5][feature]
                                 for feature in _METADATA_FEATURES
                             },
                         },
