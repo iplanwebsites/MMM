@@ -21,8 +21,8 @@ from utils.constants import (
 
 INFERENCE_CONFIG = InferenceConfig(
     {
-        0: (12,16, ["ACBarNoteDensity_6", "ACBarNoteDurationEight_1"]),
-        3: (24,26, ["ACBarNoteDensity_6", "ACBarNoteDurationEight_1"])
+        0: [(12,16, ["ACBarNoteDensity_6", "ACBarNoteDurationEight_1"])],
+        3: [(24,26, ["ACBarNoteDensity_6", "ACBarNoteDurationEight_1"])]
     },
     [
         (43, ["ACTrackOnsetPolyphonyMax_2", "ACTrackNoteDensityMin_8"]),

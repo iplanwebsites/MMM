@@ -77,7 +77,7 @@ class InferenceConfig:
     :param new_tracks: list of tuple containing the programs and attribute controls for the new tracks
     """
 
-    bars_to_generate: dict[int, tuple[int, int, list[str]]]
+    bars_to_generate: dict[int, list[tuple[int, int, list[str]]]]
     new_tracks: list[tuple[int, list[str]]]
 
     def __post_init__(self):

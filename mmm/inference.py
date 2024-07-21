@@ -126,35 +126,38 @@ def infill_bars(
 
     :return: Infilled TokSequence
     """
+    # For each set of bars to infill in the track. We may have, in the same track, non-adjacent sequences of bars. For
+    # each sequence, we do a generation step.
+    for subset_bars_to_infill in (inference_config.bars_to_generate[track_idx]):
+        input_seq = generate_infill_prompt(tokenizer, track_idx, inference_config, tokens, subset_bars_to_infill)
 
-    input_seq = generate_infill_prompt(tokenizer, track_idx, inference_config, tokens)
+        output_ids = model.generate(torch.tensor([input_seq.ids]), GenerationConfig(**GENERATION_CONFIG_PARAMS))
+        output_ids = np.array(output_ids)
 
-    output_ids = model.generate(torch.tensor([input_seq.ids]), GenerationConfig(**GENERATION_CONFIG_PARAMS))
-    output_ids = np.array(output_ids)
+        fill_start_idx = np.where(output_ids == tokenizer.vocab["FillBar_Start"])[0][0]
+        fill_end_idx = np.where(output_ids == tokenizer.vocab["FillBar_End"])[0][0]
+        infill_bar_idxs = np.where(output_ids == tokenizer.vocab["Infill_Bar"])[0]
 
-    # Move the generated content to replace the <FILL_IN> tokens.
-    fill_start_idxs = np.where(output_ids == tokenizer.vocab["FillBar_Start"])[0]
-    fill_end_idxs = np.where(output_ids == tokenizer.vocab["FillBar_End"])[0]
-    infill_bar_idxs = np.where(output_ids == tokenizer.vocab["Infill_Bar"])[0]
+        replacing_tokens = TokSequence()
 
-    # TODO: Handle the case when the model predicts a number of <FILL_START> tokens different from <FILL_END>
-    # different from <INFILL_BAR> tokens
-    if len(infill_bar_idxs) != len(fill_start_idxs) != len(fill_end_idxs):
-        msg = ""
-        raise ValueError(msg)
-
-    replacing_tokens = TokSequence()
-    for i in range(len(infill_bar_idxs)):
         replacing_tokens.ids.append(tokenizer.vocab["Bar_None"])
         replacing_tokens.tokens.append("Bar_None")
-        replacing_tokens.ids += output_ids[fill_start_idxs[i]:fill_end_idxs[i]]
-        replacing_tokens.tokens += tokenizer._ids_to_tokens(output_ids[fill_start_idxs[i]:fill_end_idxs[i]].tolist())
+        replacing_tokens.ids += output_ids[fill_start_idx:fill_end_idx]
+        replacing_tokens.tokens += tokenizer._ids_to_tokens(output_ids[fill_start_idx:fill_end_idx].tolist())
 
-    return tokens[:infill_bar_idxs[0]] + replacing_tokens + tokens[infill_bar_idxs[-1]:fill_start_idxs[0]]
+        #for i in range(subset_bars_to_infill[1] - subset_bars_to_infill[0]):
+
+        #    start_ticks = tokens._ticks_bars[subset_bars_to_infill[0]]
+        #    idxs = np.where( >= start_ticks + i*ticks_per_bars and <= start_ticks + (i+1)*ticks_per_bars)
+
+        #    bars_ticks = tokens._ticks_bars
+
+
+        return tokens[:infill_bar_idxs[0]] + replacing_tokens + tokens[infill_bar_idxs[-1]:fill_start_idx]
 
 
 def generate_infill_prompt(tokenizer: MMM, track_idx: int, inference_config: InferenceConfig,
-                           tokens: TokSequence) -> TokSequence:
+                           tokens: TokSequence, subset_bars_to_infill: tuple[int, int, list[str]]) -> TokSequence:
     """
     Constructs the prompt to be used as model's input. The sequence should have the "BAR_FILL" format:
     <TRACK_START>...<TRACK_END>...<TRACKS_START>...<FILL_IN>...<FILL_IN>...
@@ -170,8 +173,8 @@ def generate_infill_prompt(tokenizer: MMM, track_idx: int, inference_config: Inf
     for context_track_idx in inference_config.context_tracks:
         # If the track is the one to infill
         if context_track_idx == track_idx:
-            start_bar_idx = inference_config.bars_to_generate[track_idx][0]
-            end_bar_idx = inference_config.bars_to_generate[track_idx][1]
+            start_bar_idx = subset_bars_to_infill[0]
+            end_bar_idx = subset_bars_to_infill[1]
 
             bars_ticks = tokens[track_idx]._ticks_bars
             bar_tick_start = bars_ticks[start_bar_idx]
@@ -197,7 +200,7 @@ def generate_infill_prompt(tokenizer: MMM, track_idx: int, inference_config: Inf
     output_toksequence.ids.append(tokenizer.vocab["FillBar_Start"])
     output_toksequence.tokens.append("FillBar_Start")
 
-    attribute_controls = inference_config.bars_to_generate[track_idx][2]
+    attribute_controls = subset_bars_to_infill[2]
     for control in attribute_controls:
         output_toksequence.ids.append(tokenizer.vocab[control])
         output_toksequence.tokens.append(control)
