@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import csv
 import json
 from collections import defaultdict
 from pathlib import Path
@@ -21,21 +20,23 @@ _HOMEPAGE = "https://github.com/Metacreation-Lab/GigaMIDI"
 _LICENSE = "CC0, also see https://www.europarl.europa.eu/legal-notice/en/"
 _SUBSETS = ["music", "drums"]
 _SPLITS = ["train", "validation", "test"]
-_BASE_DATA_DIR = "data/"
+_BASE_DATA_DIR = ""
 _N_SHARDS_FILE = _BASE_DATA_DIR + "n_shards.json"
 _MUSIC_PATH = (
-    _BASE_DATA_DIR + "{subset}/{split}/GigaMIDI_{subset}_{split}_{n_shard}.tar"
+    _BASE_DATA_DIR + "{subset}/{split}/GigaMIDI_{subset}_{split}_{shard_idx}.tar"
 )
-_METADATA_PATH = _BASE_DATA_DIR + "{subset}/metadata_{subset}_{split}.tsv"
+_METADATA_PATH = _BASE_DATA_DIR + "{subset}/metadata_{subset}_{split}.json"
 _METADATA_FEATURES = {
     "sid_matches": datasets.Sequence(
         datasets.Sequence(
             {"sid": datasets.Value("string"), "score": datasets.Value("float16")}
         )
     ),
-    # "sid_matched": datasets.Value("string"),
-    "mbid_matches": datasets.Sequence(datasets.Value("string")),
-    # "mbid_matched": datasets.Value("string"),
+    "mbid_matches": datasets.Sequence(
+        datasets.Sequence(
+            {"mbid": datasets.Value("string"), "score": datasets.Value("float16")}
+        )
+    ),
     "genres_scraped": datasets.Sequence(datasets.Value("string")),
     "genres_discogs": datasets.Sequence(
         {"genre": datasets.Value("string"), "count": datasets.Value("int16")}
@@ -50,6 +51,41 @@ _METADATA_FEATURES = {
     # "loops": datasets.Value("string"),
 }
 _VERSION = "1.0.0"
+
+
+"""def cast_metadata_to_python(
+    metadata: dict[str, Any],
+    features: dict[str, datasets.Features] | None = None,
+) -> dict:
+    if features is None:
+        features = _METADATA_FEATURES
+    metadata_ = {}
+    for feature_name, feature in features.items():
+        data = metadata.get(feature_name, None)
+        if (
+            data
+            and isinstance(feature, datasets.Sequence)
+            and isinstance(feature.feature, (datasets.Sequence, dict))
+        ):
+            if isinstance(feature.feature, datasets.Sequence):
+                metadata_[feature_name] = [
+                    cast_metadata_to_python(
+                        {feature_name: sample}, {feature_name: feature.feature}
+                    )
+                    for sample in data
+                ]
+            else:
+                metadata_[feature_name] = {
+                    cast_metadata_to_python(
+                        {feature_name_: sample}, feature.feature
+                    )
+                    for sample in data
+                    for feature_name_ in feature.feature
+                }
+        else:
+            metadata_[feature_name] = data
+
+    return metadata_"""
 
 
 class GigaMIDIConfig(datasets.BuilderConfig):
@@ -79,20 +115,23 @@ class GigaMIDI(datasets.GeneratorBasedBuilder):
     """The GigaMIDI dataset."""
 
     VERSION = datasets.Version(_VERSION)
-    BUILDER_CONFIGS = (
-        datasets.BuilderConfig(
+    BUILDER_CONFIGS = [  # noqa:RUF012
+        GigaMIDIConfig(
             name=name,
             version=datasets.Version(_VERSION),
         )
         for name in [*_SUBSETS, "all"]
-    )
+    ]
     DEFAULT_WRITER_BATCH_SIZE = 256
 
     def _info(self) -> datasets.DatasetInfo:
         features = datasets.Features(
             {
                 "md5": datasets.Value("string"),
-                "music": datasets.Music(),  # TODO test binary
+                "music": {
+                    "path": datasets.Value("string"),
+                    "bytes": datasets.Value("binary"),
+                },
                 "is_drums": datasets.Value("bool"),
                 **_METADATA_FEATURES,
             }
@@ -116,15 +155,15 @@ class GigaMIDI(datasets.GeneratorBasedBuilder):
         music_urls = defaultdict(dict)
         for split in _SPLITS:
             for subset in self.config.subsets:
-                music_urls[subset][split] = [
-                    _MUSIC_PATH.format(subset=subset, split=split, n_shard=i)
+                music_urls[split][subset] = [
+                    _MUSIC_PATH.format(subset=subset, split=split, shard_idx=f"{i:04d}")
                     for i in range(n_shards[subset][split])
                 ]
 
         meta_urls = defaultdict(dict)
         for split in _SPLITS:
             for subset in self.config.subsets:
-                meta_urls[subset.name][split] = _METADATA_PATH.format(
+                meta_urls[split][subset] = _METADATA_PATH.format(
                     subset=subset, split=split
                 )
 
@@ -138,7 +177,7 @@ class GigaMIDI(datasets.GeneratorBasedBuilder):
             if not dl_manager.is_streaming
             else {
                 split: {
-                    subset: [None] * len(music_paths[subset][split])
+                    subset: [None] * len(music_paths[split][subset])
                     for subset in self.config.subsets
                 }
                 for split in _SPLITS
@@ -184,17 +223,16 @@ class GigaMIDI(datasets.GeneratorBasedBuilder):
                 raise ValueError(msg)
 
             is_drums = subset == "drums"
-            meta_path = metadata_paths[subset]
-            with meta_path.open() as f:
-                metadata = {x["id"]: x for x in csv.DictReader(f, delimiter="\t")}
+            with Path(metadata_paths[subset]).open() as file:
+                metadata = json.load(file)
 
             for music_shard, local_extracted_shard_path in zip(
                 music_shards[subset], local_extracted_shards_paths[subset]
             ):
                 for music_file_name, music_file in music_shard:
-                    md5 = music_file_name.stem
+                    md5 = music_file_name.split(".")[0]
                     path = (
-                        local_extracted_shard_path / music_file_name
+                        str(Path(str(local_extracted_shard_path)) / music_file_name)
                         if local_extracted_shard_path
                         else music_file_name
                     )
@@ -205,9 +243,21 @@ class GigaMIDI(datasets.GeneratorBasedBuilder):
                             "md5": md5,
                             "music": {"path": path, "bytes": music_file.read()},
                             "is_drums": is_drums,
-                            **{
-                                feature: metadata[md5][feature]
-                                for feature in _METADATA_FEATURES
-                            },
+                            "sid_matches": [
+                                {"sid": sid, "score": score}
+                                for sid, score in metadata.get("sid_matches", [])
+                            ],
+                            "mbid_matches": [
+                                {"mbid": sid, "score": score}
+                                for sid, score in metadata.get("sid_matches", [])
+                            ],
+                            "genres_scraped": metadata.get("genres_scraped", None),
+                            "genres_discogs": metadata.get("genres_discogs", None),
+                            "genres_tagtraum": metadata.get("genres_tagtraum", None),
+                            "genres_lastfm": metadata.get("genres_lastfm", None),
+                            "median_metric_depth": metadata.get(
+                                "median_metric_depth", None
+                            ),
+                            # "loops": metadata.get("loops", None),
                         },
                     )
