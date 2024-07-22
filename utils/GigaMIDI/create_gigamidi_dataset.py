@@ -27,13 +27,10 @@ def create_webdataset_gigamidi(main_data_dir_path: Path) -> None:
 
     :param main_data_dir_path: path of the directory containing the datasets.
     """
-    dataset_path = main_data_dir_path / "GigaMIDI"
-    webdataset_path = main_data_dir_path / "GigaMIDI_webdataset"
+    dataset_path = main_data_dir_path / "GigaMIDI_original"
+    webdataset_path = main_data_dir_path / "GigaMIDI"
 
     # Load metadata
-    """md5_sid_matched = json.load(
-        (main_data_dir_path / "MMD_METADATA" / "midi_audio_matches.json").open()
-    )"""
     md5_sid_matches_scores = {}
     with (
         main_data_dir_path / "MMD_METADATA" / "MMD_audio_matches.tsv"
@@ -131,19 +128,11 @@ def create_webdataset_gigamidi(main_data_dir_path: Path) -> None:
                     sid_matches = md5_sid_matches_scores.get(md5)
                     if sid_matches:
                         metadata_row["sid_matches"] = sid_matches
-                        """sid_matched = md5_sid_matched.get(md5)
-                        if sid_matched:
-                            metadata_row["sid_matched"] = sid_matched
-                            mbid_matched = sid_to_mbid[sid_matched]
-                            if mbid_matched:
-                                metadata_row["mbid_matched"] = sid_to_mbid[sid_matched]
-                                """
-
                         metadata_row["mbid_matches"] = []
-                        for sid, _ in sid_matches:
+                        for sid, score in sid_matches:
                             mbid = sid_to_mbid.get(sid, None)
                             if mbid:
-                                metadata_row["mbid_matches"].append(mbid)
+                                metadata_row["mbid_matches"].append([mbid, score])
 
                     genres_scraped = md5_genres_scraped.get(md5)
                     if genres_scraped:
@@ -159,6 +148,7 @@ def create_webdataset_gigamidi(main_data_dir_path: Path) -> None:
                     if len(metadata_row) > 0:
                         metadata[md5] = metadata_row
 
+            num_shards[subset][split] = len(list(save_path.glob("*.tar")))
             # Saving metadata for this subset and split
             """
             with (save_path.parent / f"metadata_{subset}_{split}.csv").open("w") as f:
@@ -169,23 +159,63 @@ def create_webdataset_gigamidi(main_data_dir_path: Path) -> None:
             with (save_path.parent / f"metadata_{subset}_{split}.json").open("w") as f:
                 json.dump(metadata, f)
 
+    # Saving n shards
+    with (webdataset_path / "n_shards.json").open("w") as f:
+        json.dump(num_shards, f, indent=4)
 
-def load_dataset(main_data_dir_path: Path, num_files_limit: int = 100) -> Dataset:
+
+def load_dataset_from_generator(
+    dataset_path: Path, num_files_limit: int = 100
+) -> Dataset:
     """
     Load the dataset.
 
-    :param main_data_dir_path: path of the directory containing the datasets.
+    :param dataset_path: path of the directory containing the datasets.
     :param num_files_limit: maximum number of entries/files to retain.
     :return: dataset.
     """
-    dataset_path = main_data_dir_path / "GigaMIDI"
     files_paths = list(dataset_path.glob("**/*.mid"))[:num_files_limit]
     return Dataset.from_dict(
         {"music": [str(path_) for path_ in files_paths]}
     ).cast_column("music", Music())
 
 
+def upload_dataset(dataset: Dataset, repo_id: str, token: str) -> None:
+    """
+    Load the dataset.
+
+    :param dataset: path of the directory containing the datasets.
+    :param repo_id: name of the dataset repository as `username/repo_name`.
+    :param token: access token.
+    """
+    # TODO include model card and loading script
+    dataset.push_to_hub(
+        repo_id,
+        private=True,
+        token=token,
+    )
+
+
 if __name__ == "__main__":
+    from argparse import ArgumentParser
+
     from utils.utils import path_main_data_directory
 
+    parser = ArgumentParser(description="Dataset creation script")
+    parser.add_argument(
+        "--hf-repo-name", type=str, required=False, default="Metacreation/GigaMIDI"
+    )
+    parser.add_argument("--hf-token", type=str, required=False, default=None)
+    args = vars(parser.parse_args())
+
     create_webdataset_gigamidi(path_main_data_directory())
+
+    # dataset_ = load_dataset(
+    #   args["hf_repo_name"], token=args["hf_token"], trust_remote_code=True)
+    """dataset_ = load_dataset(
+        str(path_main_data_directory() / "GigaMIDI"), "music", trust_remote_code=True
+    )"""
+    """from symusic import Score
+    score = Score.from_midi(test["mid"])
+    if args["hf_token"]:
+        upload_dataset(dataset_, args["hf_repo_name"], args["hf_token"])"""
