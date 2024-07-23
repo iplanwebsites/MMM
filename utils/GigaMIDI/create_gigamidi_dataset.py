@@ -8,7 +8,6 @@ import json
 from typing import TYPE_CHECKING
 
 from datasets import Dataset
-from datasets.features.music import Music
 from tqdm import tqdm
 from webdataset import ShardWriter
 
@@ -134,6 +133,12 @@ def create_webdataset_gigamidi(main_data_dir_path: Path) -> None:
                             if mbid:
                                 metadata_row["mbid_matches"].append([mbid, score])
 
+                    title_artist = md5_artist_title_scraped.get(md5)
+                    if title_artist:
+                        (
+                            metadata_row["title_scraped"],
+                            metadata_row["artist_scraped"],
+                        ) = title_artist
                     genres_scraped = md5_genres_scraped.get(md5)
                     if genres_scraped:
                         metadata_row["genres_scraped"] = genres_scraped
@@ -175,9 +180,7 @@ def load_dataset_from_generator(
     :return: dataset.
     """
     files_paths = list(dataset_path.glob("**/*.mid"))[:num_files_limit]
-    return Dataset.from_dict(
-        {"music": [str(path_) for path_ in files_paths]}
-    ).cast_column("music", Music())
+    return Dataset.from_dict({"music": [str(path_) for path_ in files_paths]})
 
 
 if __name__ == "__main__":
@@ -195,13 +198,18 @@ if __name__ == "__main__":
     create_webdataset_gigamidi(path_main_data_directory())
 
     """dataset_ = load_dataset(
-       args["hf_repo_name"], "all", token=args["hf_token"], trust_remote_code=True
+       args["hf_repo_name"], "music", token=args["hf_token"], trust_remote_code=True
     )"""
     """dataset_ = load_dataset(
         str(path_main_data_directory() / "GigaMIDI"), "music", trust_remote_code=True
-    )"""
-    """t = dataset_["validation"]
-    test = t[0]
+    )
+    data = dataset_["train"]
+    for i in range(700):
+        t = data[i]
+        f = 0
+
+    test = data[0]
+    print(test)
     from symusic import Score
 
     score = Score.from_midi(test["music"]["bytes"])

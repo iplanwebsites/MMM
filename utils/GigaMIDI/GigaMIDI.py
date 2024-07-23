@@ -28,15 +28,13 @@ _MUSIC_PATH = (
 _METADATA_PATH = _BASE_DATA_DIR + "{subset}/metadata_{subset}_{split}.json"
 _METADATA_FEATURES = {
     "sid_matches": datasets.Sequence(
-        datasets.Sequence(
-            {"sid": datasets.Value("string"), "score": datasets.Value("float16")}
-        )
+        {"sid": datasets.Value("string"), "score": datasets.Value("float16")}
     ),
     "mbid_matches": datasets.Sequence(
-        datasets.Sequence(
-            {"mbid": datasets.Value("string"), "score": datasets.Value("float16")}
-        )
+        {"mbid": datasets.Value("string"), "score": datasets.Value("float16")}
     ),
+    "artist_scraped": datasets.Value("string"),
+    "title_scraped": datasets.Value("string"),
     "genres_scraped": datasets.Sequence(datasets.Value("string")),
     "genres_discogs": datasets.Sequence(
         {"genre": datasets.Value("string"), "count": datasets.Value("int16")}
@@ -120,7 +118,7 @@ class GigaMIDI(datasets.GeneratorBasedBuilder):
             name=name,
             version=datasets.Version(_VERSION),
         )
-        for name in [*_SUBSETS, "all"]
+        for name in ["all", *_SUBSETS]
     ]
     DEFAULT_WRITER_BATCH_SIZE = 256
 
@@ -237,6 +235,7 @@ class GigaMIDI(datasets.GeneratorBasedBuilder):
                         else music_file_name
                     )
 
+                    metadata_ = metadata.get(md5, {})
                     yield (
                         md5,
                         {
@@ -245,19 +244,36 @@ class GigaMIDI(datasets.GeneratorBasedBuilder):
                             "is_drums": is_drums,
                             "sid_matches": [
                                 {"sid": sid, "score": score}
-                                for sid, score in metadata.get("sid_matches", [])
+                                for sid, score in metadata_.get("sid_matches", [])
                             ],
                             "mbid_matches": [
                                 {"mbid": sid, "score": score}
-                                for sid, score in metadata.get("sid_matches", [])
+                                for sid, score in metadata_.get("sid_matches", [])
                             ],
-                            "genres_scraped": metadata.get("genres_scraped", None),
-                            "genres_discogs": metadata.get("genres_discogs", None),
-                            "genres_tagtraum": metadata.get("genres_tagtraum", None),
-                            "genres_lastfm": metadata.get("genres_lastfm", None),
-                            "median_metric_depth": metadata.get(
+                            "artist_scraped": metadata_.get("artist_scraped", None),
+                            "title_scraped": metadata_.get("title_scraped", None),
+                            "genres_scraped": metadata_.get("genres_scraped", None),
+                            "genres_discogs": [
+                                {"genre": genre, "count": count}
+                                for genre, count in metadata_.get(
+                                    "genres_discogs", {}
+                                ).items()
+                            ],
+                            "genres_tagtraum": [
+                                {"genre": genre, "count": count}
+                                for genre, count in metadata_.get(
+                                    "genres_tagtraum", {}
+                                ).items()
+                            ],
+                            "genres_lastfm": [
+                                {"genre": genre, "count": count}
+                                for genre, count in metadata_.get(
+                                    "genres_lastfm", {}
+                                ).items()
+                            ],
+                            "median_metric_depth": metadata_.get(
                                 "median_metric_depth", None
                             ),
-                            # "loops": metadata.get("loops", None),
+                            # "loops": metadata_.get("loops", None),
                         },
                     )
