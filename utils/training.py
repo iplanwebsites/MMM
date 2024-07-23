@@ -128,7 +128,7 @@ def whole_training_process(
 
     # Load data
     set_seed(baseline.seed)  # set before loading checkpoint
-    dataset_train, dataset_valid, dataset_test = baseline.create_data_subsets()
+    subsets = baseline.create_data_subsets()
     """from tqdm import tqdm
 
     for x in tqdm(dataset_train, desc="iterating over dataset"):
@@ -147,8 +147,8 @@ def whole_training_process(
         model=model,
         args=training_config,
         data_collator=collator,
-        train_dataset=dataset_train,
-        eval_dataset=dataset_valid,
+        train_dataset=subsets["train"],
+        eval_dataset=subsets["validation"],
         compute_metrics=compute_metrics,
     )
     if not is_training_done(baseline.run_path):
@@ -156,7 +156,7 @@ def whole_training_process(
     elif do_test and not is_testing_done(baseline.run_path):
         model = model.from_pretrained(baseline.run_path, device_map="auto")
         trainer.model = model
-        test_model(trainer, dataset_test=dataset_test)
+        test_model(trainer, dataset_test=subsets["test"])
 
 
 def train_model(trainer: Trainer) -> None:

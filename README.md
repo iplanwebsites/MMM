@@ -69,7 +69,7 @@ sbatch slurm/train_model.sh hf_token
 #### Pure Python
 
 ```bash
-python scripts/preprocess_dataset.py
+python scripts/train_tokenizer.py
 python scripts/train_model.py
 ```
 

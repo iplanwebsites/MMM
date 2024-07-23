@@ -144,8 +144,7 @@ if __name__ == "__main__":
     from tqdm import tqdm
     from transformers.trainer_utils import set_seed
 
-    from scripts.preprocess_dataset import is_score_valid
-    from utils.baseline import mmm
+    from utils.baseline import is_score_valid, mmm
 
     set_seed(mmm.seed)
 
