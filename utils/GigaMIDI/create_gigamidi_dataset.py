@@ -12,7 +12,7 @@ from datasets.features.music import Music
 from tqdm import tqdm
 from webdataset import ShardWriter
 
-from utils.GigaMIDI.gigamidi import _SPLITS, _SUBSETS
+from utils.GigaMIDI.GigaMIDI import _SPLITS, _SUBSETS
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -180,22 +180,6 @@ def load_dataset_from_generator(
     ).cast_column("music", Music())
 
 
-def upload_dataset(dataset: Dataset, repo_id: str, token: str) -> None:
-    """
-    Load the dataset.
-
-    :param dataset: path of the directory containing the datasets.
-    :param repo_id: name of the dataset repository as `username/repo_name`.
-    :param token: access token.
-    """
-    # TODO include model card and loading script
-    dataset.push_to_hub(
-        repo_id,
-        private=True,
-        token=token,
-    )
-
-
 if __name__ == "__main__":
     from argparse import ArgumentParser
 
@@ -210,12 +194,15 @@ if __name__ == "__main__":
 
     create_webdataset_gigamidi(path_main_data_directory())
 
-    # dataset_ = load_dataset(
-    #   args["hf_repo_name"], token=args["hf_token"], trust_remote_code=True)
+    """dataset_ = load_dataset(
+       args["hf_repo_name"], "all", token=args["hf_token"], trust_remote_code=True
+    )"""
     """dataset_ = load_dataset(
         str(path_main_data_directory() / "GigaMIDI"), "music", trust_remote_code=True
     )"""
-    """from symusic import Score
-    score = Score.from_midi(test["mid"])
-    if args["hf_token"]:
-        upload_dataset(dataset_, args["hf_repo_name"], args["hf_token"])"""
+    """t = dataset_["validation"]
+    test = t[0]
+    from symusic import Score
+
+    score = Score.from_midi(test["music"]["bytes"])
+    t = 0"""
