@@ -1,4 +1,4 @@
-"""The GigaMIDI dataset."""
+"""The GigaMIDI dataset."""  # noqa:N999
 
 from __future__ import annotations
 
@@ -195,7 +195,7 @@ class GigaMIDI(datasets.GeneratorBasedBuilder):
                         for subset, subset_shards in music_paths[split_name].items()
                     },
                     "local_extracted_shards_paths": local_extracted_music_paths[
-                        "train"
+                        split_name
                     ],
                     "metadata_paths": meta_paths[split_name],
                 },
