@@ -1,9 +1,9 @@
 #!/bin/bash
 
 # Set SLURM / hardware environment
-#SBATCH --job-name=preprocess-data
-#SBATCH --output=logs/preprocess-data.out
-#SBATCH --error=logs/preprocess-data_err.out
+#SBATCH --job-name=train-tokenizer
+#SBATCH --output=logs/train-tokenizer.out
+#SBATCH --error=logs/train-tokenizer_err.out
 #SBATCH --account=def-pasquier
 #SBATCH --mail-user=raa60@sfu.ca # Default mail
 #SBATCH --nodes=1            # total nb of nodes
@@ -25,6 +25,6 @@ export HF_HOME=$SCRATCH/.hf_cache
 source .venv/bin/activate
 
 # Run the training
-python scripts/preprocess_dataset.py
+python scripts/train_tokenizer.py
 
 echo "END TIME: $(date)"

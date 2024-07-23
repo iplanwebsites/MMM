@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from random import choice, random, sample, shuffle, uniform
 from typing import TYPE_CHECKING
 
@@ -9,6 +10,7 @@ import numpy as np
 import torch
 from miditok import TokSequence
 from miditok.attribute_controls import BarAttributeControl
+from miditok.constants import SCORE_LOADING_EXCEPTION
 from miditok.data_augmentation.data_augmentation import (
     _filter_offset_tuples_to_score,
     augment_score,
@@ -19,16 +21,16 @@ from miditok.utils import (
     get_bars_ticks,
     split_score_per_note_density,
 )
+from symusic import Score
+from torch import LongTensor
 
 from utils.constants import MAX_NUM_FILES_NUM_TOKENS_PER_NOTE, MIN_SEQ_LEN
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Sequence
-    from pathlib import Path
+    from collections.abc import Callable
 
+    from datasets import Dataset
     from miditok import MMM
-    from symusic import Score
-    from torch import LongTensor
 
 
 def concat_tokseq(sequences: list[TokSequence]) -> TokSequence:
@@ -44,7 +46,7 @@ def concat_tokseq(sequences: list[TokSequence]) -> TokSequence:
     return tokseq
 
 
-class DatasetMMMPreTok(DatasetMIDI):
+class DatasetMMM(DatasetMIDI):
     r"""
     A ``Dataset`` loading and tokenizing music files (MIDI, abc) during training.
 
@@ -71,7 +73,7 @@ class DatasetMMMPreTok(DatasetMIDI):
     files. Otherwise, the ``DatasetMIDI`` will return dictionaries with ``None`` values
     when iterated.
 
-    :param files_paths: paths to the music files to load.
+    :param dataset: hugging face Dataset instance.
     :param tokenizer: MidiTok tokenizer.
     :param max_seq_len: maximum sequence length (in num of tokens)
     :param ratio_random_tracks_range:
@@ -100,7 +102,7 @@ class DatasetMMMPreTok(DatasetMIDI):
 
     def __init__(
         self,
-        files_paths: Sequence[Path],
+        dataset: Dataset,
         tokenizer: MMM,
         max_seq_len: int,
         ratio_random_tracks_range: tuple[float, float],
@@ -120,6 +122,7 @@ class DatasetMMMPreTok(DatasetMIDI):
         sample_key_name: str = "input_ids",
         labels_key_name: str = "labels",
     ) -> None:
+        self._dataset = dataset
         self.ratio_random_tracks_range = ratio_random_tracks_range
         pitch_offsets = data_augmentation_offsets[0]
         self.pitch_offsets = list(range(-pitch_offsets, pitch_offsets + 1))
@@ -131,8 +134,12 @@ class DatasetMMMPreTok(DatasetMIDI):
         self.bar_masking_duration_ratio_range = bar_masking_duration_ratio_range
         self.ac_random_ratio_range = ac_random_ratio_range
 
+        _paths = [
+            Path(sample_["music"]["path"])
+            for sample_ in self._dataset["train"][:MAX_NUM_FILES_NUM_TOKENS_PER_NOTE]
+        ]
         self.average_num_tokens_per_note = get_average_num_tokens_per_note(
-            tokenizer, files_paths[:MAX_NUM_FILES_NUM_TOKENS_PER_NOTE]
+            tokenizer, _paths
         )
 
         # Infill tokens, set as attribute here to avoid to access to vocab dic
@@ -169,7 +176,7 @@ class DatasetMMMPreTok(DatasetMIDI):
                 self._ac_tracks.append(i)
 
         super().__init__(
-            files_paths,
+            [],
             tokenizer,
             max_seq_len,
             bos_token_id=bos_token_id,
@@ -193,7 +200,31 @@ class DatasetMMMPreTok(DatasetMIDI):
         :param idx: idx of the file/sample.
         :return: the token ids, with optionally the associated label.
         """
-        item = super().__getitem__(idx)
+        labels = None
+
+        # The tokenization steps are outside the try bloc as if there are errors,
+        # we might want to catch them to fix them instead of skipping the iteration.
+        try:
+            score = Score.from_midi(self._dataset[idx]["music"]["bytes"])
+        except SCORE_LOADING_EXCEPTION:
+            item = {self.sample_key_name: None}
+            if self.func_to_get_labels is not None:
+                item[self.labels_key_name] = labels
+            return item
+
+        tseq = self._tokenize_score(score)
+        # If not one_token_stream, we only take the first track/sequence
+        token_ids = tseq.ids if self.tokenizer.one_token_stream else tseq[0].ids
+        if self.func_to_get_labels is not None:
+            # tokseq can be given as a list of TokSequence to get the labels
+            labels = self.func_to_get_labels(score, tseq, self.files_paths[idx])
+            if not isinstance(labels, LongTensor):
+                labels = LongTensor([labels] if isinstance(labels, int) else labels)
+
+        item = {self.sample_key_name: LongTensor(token_ids)}
+        if self.func_to_get_labels is not None:
+            item[self.labels_key_name] = labels
+
         item[self.labels_key_name] = item[self.sample_key_name].clone()
         idx_tokens_to_discard = torch.isin(
             item[self.labels_key_name], self._token_ids_no_loss

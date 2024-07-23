@@ -9,11 +9,7 @@ from typing import TYPE_CHECKING, Any
 
 import miditok
 
-from .utils import path_main_data_directory
-
 if TYPE_CHECKING:
-    from collections.abc import Sequence
-
     from torch.utils.data import Dataset
     from transformers import (
         DataCollator,
@@ -191,43 +187,6 @@ class Baseline(ABC):
         """
         return Path("runs", self.name)
 
-    @property
-    def dataset_path(self) -> Path:
-        """
-        Return the path of the dataset.
-
-        :return: path of the dataset.
-        """
-        return path_main_data_directory() / self.dataset
-
-    @property
-    def dataset_files_paths(self) -> list[Path]:
-        """
-        Return the paths of the files of the dataset.
-
-        :return: paths of the files of the dataset.
-        """
-        return list(self.dataset_path.glob("**/*.mid"))
-
-    @property
-    def data_subsets_paths(self) -> tuple[list[Path], list[Path], list[Path]]:
-        """
-        Return the paths of the files of the data subsets.
-
-        :return: paths of the directories of the data subsets.
-        """
-        dataset_files_paths = self.dataset_files_paths
-        total_num_files = len(dataset_files_paths)
-        num_files_valid = round(total_num_files * self.data_config.ratio_valid_subset)
-        num_files_test = round(total_num_files * self.data_config.ratio_test_subset)
-        midi_paths_valid = dataset_files_paths[:num_files_valid]
-        midi_paths_test = dataset_files_paths[
-            num_files_valid : num_files_valid + num_files_test
-        ]
-        midi_paths_train = dataset_files_paths[num_files_valid + num_files_test :]
-
-        return midi_paths_train, midi_paths_valid, midi_paths_test
-
     def __return_special_token(self, tok: str) -> int:
         return self.tokenizer[tok]
 
@@ -285,11 +244,11 @@ class Baseline(ABC):
         """
         raise NotImplementedError
 
-    def create_dataset(self, files_paths: Sequence[Path]) -> Dataset:
+    def create_dataset(self, *args, **kwargs) -> Dataset:  # noqa:ANN002
         """
         Create a ``pytorch.utils.data.Dataset`` to use to train/test a model.
 
-        :param files_paths: paths of the files to use.
+        :return: the whole dataset.
         """
         raise NotImplementedError
 
@@ -297,13 +256,13 @@ class Baseline(ABC):
         """Create a data collator to use with a ``pytorch.utils.data.DataLoader``."""
         raise NotImplementedError
 
-    def create_data_subsets(self) -> list[Dataset]:
+    def create_data_subsets(self, *args, **kwargs) -> dict[str, Dataset]:  # noqa:ANN002
         """
         Create the ``pytorch.utils.data.Dataset`` train/valid/test subsets.
 
         :return: the train/valid/test subsets as ``pytorch.utils.data.Dataset`` objects.
         """
-        return [self.create_dataset(paths) for paths in self.data_subsets_paths]
+        raise NotImplementedError
 
     def __repr__(self) -> str:
         """

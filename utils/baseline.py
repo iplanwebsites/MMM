@@ -7,9 +7,14 @@ import sys
 from copy import deepcopy
 from typing import TYPE_CHECKING
 
+import datasets
 import torch
+from datasets import load_dataset
 from miditok import TokenizerConfig
+from miditok.constants import SCORE_LOADING_EXCEPTION
 from miditok.pytorch_data import DataCollator
+from miditok.utils import get_bars_ticks
+from symusic import Score  # TODO test with symusic v0.5.0
 from transformers import (
     AutoModelForCausalLM,
     GenerationConfig,
@@ -53,6 +58,8 @@ from utils.constants import (
     LR_SCHEDULER,
     MAX_POSITION_EMBEDDINGS,
     MAX_SEQ_LEN,
+    MIN_NUM_BARS_FILE_VALID,
+    MIN_NUM_NOTES_FILE_VALID,
     NEFTUNE_NOISE_ALPHA,
     NUM_ATTENTION_HEADS,
     NUM_BEAMS,
@@ -90,12 +97,9 @@ from utils.constants import (
     WARMUP_RATIO,
     WEIGHT_DECAY,
 )
-from utils.data_loading import DatasetMMMPreTok
+from utils.data_loading import DatasetMMM
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
-    from pathlib import Path
-
     from transformers import PreTrainedModel
 
 
@@ -103,27 +107,86 @@ attn_implem = "flash_attention_2" if "flash_attn" in sys.modules else None
 dtype = torch.bfloat16 if BF16 else torch.float16 if FP16 else torch.float32
 
 
+def is_score_valid(score: Score, min_num_bars: int, min_num_notes: int) -> bool:
+    """
+    Check if a ``symusic.Score`` is valid, contains the minimum required number of bars.
+
+    :param score: ``symusic.Score`` to inspect.
+    :param min_num_bars: minimum number of bars the score should contain.
+    :param min_num_notes: minimum number of notes that score should contain.
+    :return: boolean indicating if ``score`` is valid.
+    """
+    return (
+        len(get_bars_ticks(score)) >= min_num_bars and score.note_num() > min_num_notes
+    )
+
+
 class MMMBaseline(Baseline):
     """MMM model baseline."""
 
-    def create_dataset(self, files_paths: Sequence[Path]) -> DatasetMMMPreTok:
+    def create_dataset(
+        self, repo_id: str, subset_name: str, hf_token: str | None = None
+    ) -> datasets.Dataset:
         """
         Create a ``pytorch.utils.data.Dataset`` to use to train/test a model.
 
-        :param files_paths: paths of the files to use.
+        :param repo_id: id of the Hugging Face repository containing the data.
+        :param subset_name: name of the subset of the dataset to use.
+        :param hf_token: Hugging Face token. (default: ``None``)
+        :return the ``Dataset``.
         """
-        return DatasetMMMPreTok(
-            files_paths,
-            self.tokenizer,
-            self.data_config.max_seq_len,
-            TRACKS_SELECTION_RANDOM_RATIO_RANGE,
-            self.data_config.data_augmentation_offsets,
-            RATIO_BAR_INFILLING,
-            RATIOS_RANGE_BAR_INFILLING_DURATION,
-            ac_random_ratio_range=ACS_RANDOM_RATIO_RANGE,
-            ac_tracks_random_ratio_range=TRACKS_IDX_RANDOM_RATIO_RANGE,
-            ac_bars_random_ratio_range=BARS_IDX_RANDOM_RATIO_RANGE,
+        return load_dataset(  # TODO make sure extracted on local filesystem
+            repo_id, subset_name, token=hf_token, trust_remote_code=True
         )
+
+    def create_data_subsets(
+        self, repo_id: str, subset_name: str, hf_token: str | None = None
+    ) -> dict[str, DatasetMMM]:
+        """
+        Create the train/validation/test subsets to train the model.
+
+        :param repo_id: id of the Hugging Face repository containing the data.
+        :param subset_name: name of the subset of the dataset to use.
+        :param hf_token: Hugging Face token. (default: ``None``)
+        :return: data subsets.
+        """
+        dataset = self.create_dataset(repo_id, subset_name, hf_token)
+        return {
+            subset_name: DatasetMMM(
+                self.preprocess_dataset(subset),
+                self.tokenizer,
+                self.data_config.max_seq_len,
+                TRACKS_SELECTION_RANDOM_RATIO_RANGE,
+                self.data_config.data_augmentation_offsets,
+                RATIO_BAR_INFILLING,
+                RATIOS_RANGE_BAR_INFILLING_DURATION,
+                ac_random_ratio_range=ACS_RANDOM_RATIO_RANGE,
+                ac_tracks_random_ratio_range=TRACKS_IDX_RANDOM_RATIO_RANGE,
+                ac_bars_random_ratio_range=BARS_IDX_RANDOM_RATIO_RANGE,
+            )
+            for subset_name, subset in dataset
+        }
+
+    @staticmethod
+    def preprocess_dataset(dataset: datasets.Dataset) -> datasets.Dataset:
+        """
+        Process the dataset after being loaded.
+
+        Makes sure every entry can be loaded as a ``symusic.Score`` and that the score
+        is valid.
+
+        :param dataset: ``datasets.Dataset`` to process.
+        """
+        # TODO use filter? Use an inplace method to reduce memory usage?
+        idxs_valid = []
+        for i, sample_ in enumerate(dataset):
+            try:
+                score = Score.from_midi(sample_["music"]["bytes"])
+            except SCORE_LOADING_EXCEPTION:
+                continue
+            if is_score_valid(score, MIN_NUM_BARS_FILE_VALID, MIN_NUM_NOTES_FILE_VALID):
+                idxs_valid.append(i)
+        return dataset.select(idxs_valid)
 
     def create_data_collator(self, pad_on_left: bool = False) -> DataCollator:
         """Create a data collator to use with a ``pytorch.utils.data.DataLoader``."""
@@ -239,9 +302,8 @@ generation_config = GenerationConfig(
 )
 
 # exp -> Model size, baseline -> pretrained + finetune
-dataset = "GigaMIDI"
 mmm = MMMBaseline(
-    dataset,
+    "GigaMIDI",
     SEED,
     deepcopy(tok_config),
     deepcopy(model_config),

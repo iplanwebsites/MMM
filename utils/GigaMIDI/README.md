@@ -55,8 +55,6 @@ We provide two subsets: `drums`, which contain MIDI files exclusively containing
 
 The `datasets` library allows you to load and pre-process your dataset in pure Python at scale. The dataset can be downloaded and prepared in one call to your local drive by using the `load_dataset` function.
 
-For example, to download the Hindi config, simply specify the corresponding language config name (i.e., "hi" for Hindi):
-
 ```python
 from datasets import load_dataset
 
@@ -115,22 +113,22 @@ dataset = load_dataset("Metacreation/GigaMIDI", "music", trust_remote_code=True,
 A typical data sample comprises the `md5` of the file which corresponds to its file name, a `music` entry containing dictionary mapping to its absolute file `path` and `bytes` that can be loaded with `symusic` as `score = Score.from_midi(dataset[sample_idx]["music"]["bytes"])`.
 Metadata accompanies each file, which is introduced in the next section.
 
-A data sample indexed from the dataset may look like this:
+A data sample indexed from the dataset may look like this (the `bytes` entry is voluntarily shorten):
 
 ```python
 {
-    'md5': '49186b396f1871059e163f5a23aa091e',
-    'music': {'path': '/Users/nathan/.cache/huggingface/datasets/downloads/extracted/a088566f208c23297b5a99c53b9eb0cc429b111121dbfb4b3d104a2e63b89834/49186b396f1871059e163f5a23aa091e.mid', 'bytes': b"MThd\x00"},
+    'md5': '0211bbf6adf0cf10d42117e5929929a4',
+    'music': {'path': '/Users/nathan/.cache/huggingface/datasets/downloads/extracted/cc8e36bbe8d5ec7ecf1160714d38de3f2f670c13bc83e0289b2f1803f80d2970/0211bbf6adf0cf10d42117e5929929a4.mid', 'bytes': b"MThd\x00\x00\x00\x06\x00\x01\x00\x05\x01\x00MTrk\x00"},
     'is_drums': False,
-    'sid_matches': [],
-    'mbid_matches': [],
-    'artist_scraped': None,
-    'title_scraped': None,
-    'genres_scraped': None,
-    'genres_discogs': None,
-    'genres_tagtraum': None,
-    'genres_lastfm': None,
-    'median_metric_depth': None,
+    'sid_matches': {'sid': ['065TU5v0uWSQmnTlP5Cnsz', '29OG7JWrnT0G19tOXwk664', '2lL9TiCxUt7YpwJwruyNGh'], 'score': [0.711, 0.8076, 0.8315]},
+    'mbid_matches': {'mbid': ['065TU5v0uWSQmnTlP5Cnsz', '29OG7JWrnT0G19tOXwk664', '2lL9TiCxUt7YpwJwruyNGh'], 'score': [0.711, 0.8076, 0.8315]},
+    'artist_scraped': 'Bach, Johann Sebastian',
+    'title_scraped': 'Contrapunctus 1 from Art of Fugue',
+    'genres_scraped': ['classical', 'romantic'],
+    'genres_discogs': {'genre': ['classical', 'classical---baroque'], 'count': [14, 1]},
+    'genres_tagtraum': {'genre': ['classical', 'classical---baroque'], 'count': [1, 1]},
+    'genres_lastfm': {'genre': [], 'count': []},
+    'median_metric_depth': [0, 0, 0, 0]
 }
 ```
 
