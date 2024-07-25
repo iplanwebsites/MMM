@@ -130,7 +130,7 @@ def whole_training_process(
     subsets = baseline.create_data_subsets()
     """from tqdm import tqdm
 
-    for x in tqdm(dataset_train, desc="iterating over dataset"):
+    for x in tqdm(subsets["train"], desc="iterating over dataset"):
         t = 0"""
     collator = baseline.create_data_collator()
 

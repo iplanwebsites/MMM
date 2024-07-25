@@ -13,13 +13,13 @@ if TYPE_CHECKING:
     from symusic.core import TextMetaTickList
 
 
-def path_main_data_directory() -> Path:
+def path_data_directory_local_fs() -> Path:
     """
-    Return the path to the root data directory.
+    Return the path to the root data directory on the local file system.
 
     :return: path to the root data directory.
     """
-    return Path(os.getenv("SCRATCH", ".."), "data").resolve()
+    return Path(os.getenv("SLURM_TMPDIR", ".."), "data").resolve()
 
 
 def symusic_track_to_struct(track: Track) -> dict[str, np.ndarray]:
