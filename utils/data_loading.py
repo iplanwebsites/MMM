@@ -136,7 +136,9 @@ class DatasetMMM(DatasetMIDI):
 
         _paths = [
             Path(sample_["music"]["path"])
-            for sample_ in self._dataset["train"][:MAX_NUM_FILES_NUM_TOKENS_PER_NOTE]
+            for sample_ in self._dataset.select(
+                list(range(MAX_NUM_FILES_NUM_TOKENS_PER_NOTE))
+            )
         ]
         self.average_num_tokens_per_note = get_average_num_tokens_per_note(
             tokenizer, _paths
@@ -237,10 +239,10 @@ class DatasetMMM(DatasetMIDI):
         # otherwise if unused elements are at the end of the score they can give us
         # bar ticks exceeding the tokens
         score.markers = []
-        score.lyrics = []
         score.key_signatures = []
         for track in score.tracks:
             track.controls = []
+            track.lyrics = []
             if not self.tokenizer.config.use_sustain_pedals:
                 track.pedals = []
             if not self.tokenizer.config.use_pitch_bends:
@@ -434,3 +436,14 @@ class DatasetMMM(DatasetMIDI):
                 choice(self.duration_offsets),
             )
         return self.tokenizer.preprocess_score(score)
+
+    def __len__(self) -> int:
+        """
+        Return the size of the dataset.
+
+        :return: number of elements in the dataset.
+        """
+        return len(self._dataset)
+
+    def __str__(self) -> str:  # noqa:D105
+        return f"{len(self)} samples."

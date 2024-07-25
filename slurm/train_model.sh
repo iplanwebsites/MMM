@@ -37,7 +37,7 @@ echo "Node list: $SLURM_JOB_NODELIST"
 
 # Defining the right environment variables
 export PYTHONPATH=$HOME/MMM
-export HF_HOME=$SCRATCH/.hf_cache
+export HF_HOME=$SLURM_TMPDIR/.hf_cache
 export HF_METRICS_OFFLINE=1
 export TRANSFORMERS_OFFLINE=1
 export OMP_NUM_THREADS=1
@@ -47,6 +47,11 @@ export OMP_NUM_THREADS=1
 # https://github.com/huggingface/transformers/issues/5486
 # best explanation: https://stackoverflow.com/questions/62691279/how-to-disable-tokenizers-parallelism-true-false-warning/72926996#72926996
 export TOKENIZERS_PARALLELISM=0
+
+# Move hugging face dataset from scratch to local file system
+# This is done on every nodes.
+# Docs: https://docs.alliancecan.ca/wiki/Using_node-local_storage
+srun --ntasks=$SLURM_NNODES --ntasks-per-node=1 cp -R $SCRATCH/data/GigaMIDI $SLURM_TMPDIR/data/
 
 # Set launcher command with params
 export LAUNCHER="torchrun \
@@ -62,7 +67,6 @@ export LAUNCHER="torchrun \
 
 # Load the python environment
 source .venv/bin/activate
-# pip install flash-attn --no-build-isolation
 
 # Run the training
 srun --jobid "$SLURM_JOBID" bash -c "$LAUNCHER scripts/train_model.py $MODEL_TRAIN_ARGS"

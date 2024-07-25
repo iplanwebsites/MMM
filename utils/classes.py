@@ -9,6 +9,8 @@ from typing import TYPE_CHECKING, Any
 
 import miditok
 
+from utils.utils import path_data_directory_local_fs
+
 if TYPE_CHECKING:
     from torch.utils.data import Dataset
     from transformers import (
@@ -24,29 +26,16 @@ class DataConfig:
     """
     Configuration of the data.
 
-    :param ratio_valid_subset: ratio (between 0 and 1) of the data that should be used
-        when evaluating the model during training.
-    :param ratio_test_subset: ratio (between 0 and 1) of the data that should be used
-        to test the model after training.
+    :param subset_name: name of the subset of the dataset to use.
     :param data_augmentation_offsets: offsets of pitch, velocity and note duration to
         use to augment the original dataset.
     :param max_seq_len: maximum length that a token sequence should have to be used to
         train the model.
     """
 
-    ratio_valid_subset: float
-    ratio_test_subset: float
+    subset_name: str
     data_augmentation_offsets: tuple[int, int, int]
     max_seq_len: int
-
-    def __post_init__(self) -> None:
-        """Post init method checking the subset ratios are valid."""
-        if not 0 <= self.ratio_valid_subset + self.ratio_test_subset < 1:
-            msg = (
-                "The sum of the valid and test ratios must be comprised within 0 "
-                "(included) and 1"
-            )
-            raise ValueError(msg)
 
 
 @dataclass
@@ -142,6 +131,15 @@ class Baseline(ABC):
         :return: path of the tokenizer's configuration file.
         """
         return self.run_path / "tokenizer.json"
+
+    @property
+    def dataset_path(self) -> Path:
+        """
+        Return the path of the dataset.
+
+        :return: path of the dataset.
+        """
+        return path_data_directory_local_fs() / self.dataset
 
     @property
     def run_path(self) -> Path:
