@@ -96,6 +96,7 @@ from utils.constants import (
     WEIGHT_DECAY,
 )
 from utils.data_loading import DatasetMMM
+from utils.utils import path_data_directory_local_fs
 
 if TYPE_CHECKING:
     from datasets import Dataset
@@ -142,9 +143,24 @@ class MMMBaseline(Baseline):
 
         :return the ``Dataset``.
         """
-        return load_dataset(
+        """return load_dataset(
             str(self.dataset_path), self.data_config.subset_name, trust_remote_code=True
-        )
+        )"""
+        # Trick required here because of potential permission error caused by the
+        # hugging face datasets library when extracting webdataset tar files written
+        # without user write permission.
+        while True:
+            try:
+                return load_dataset(
+                    str(self.dataset_path),
+                    self.data_config.subset_name,
+                    trust_remote_code=True,
+                )
+            except PermissionError:
+                path = str(
+                    path_data_directory_local_fs() / ".hf_cache" / "datasets"
+                )  # TODO adapt for local
+                os.system(f"chown -R 777 {path}")  # noqa:S605
 
     def create_data_subsets(self) -> dict[str, DatasetMMM]:
         """
