@@ -33,29 +33,24 @@ def generate(
         score = generate_infilling(model, tokenizer, inference_config, score)
     if inference_config.autoregressive:
         for track in inference_config.new_tracks:
-            new_tracks_score = generate_new_track(model, tokenizer, track, score)
+            score = generate_new_track(model, tokenizer, track, score)
 
-    if inference_config.infilling:
-        if inference_config.autoregressive:
-            for i in range(len(inference_config.new_tracks)):
-                score.tracks.append(new_tracks_score.tracks[len(score) + i])
-        score.dump_midi(output_midi_path)
-    else:
-        new_tracks_score.dump_midi(output_midi_path)
+    # Reconstruct the midi output file.
+    score.dump_midi(output_midi_path)
 
 
 def generate_new_track(model: PreTrainedModel, tokenizer: MMM, track: tuple[int, list[str]], score: Score) -> Score:
     """
     Generate a new track of a given Score.
 
-    The new track will be generated with the model and
+    The new track will be added to the score.
 
     :param model: model used for generation
     :param tokenizer: MMM tokenizer
     :param track: tuple containing the program of the track and a list of Track Attribute Controls
     :param score: symusic.Score
     """
-    # In this case, the prompt is the whole toksequence
+    # In this case, the prompt is a toksequence containing all the tracks
     input_seq = tokenizer.encode(score)
 
     # Add <TRACK_START> and <PROGRAM> tokens
@@ -73,8 +68,13 @@ def generate_new_track(model: PreTrainedModel, tokenizer: MMM, track: tuple[int,
 
     output_seq = input_seq
     output_seq.ids = output_ids
-    # tokenizer.complete_sequence(output_seq)
     output_seq.tokens += tokenizer._ids_to_tokens(output_ids[len(input_seq.tokens):])
+
+    # It is expected to have a <TRACK_END> token at the end of the sequence.
+    if (output_seq.tokens[-1] != "Track_End"):
+        print("Track generation failed: the model failed to predict a <TRACK_END> token")
+        output_seq.ids.append(tokenizer.vocab["Track_End"])
+        output_seq.tokens.append("Track_End")
 
     return tokenizer._tokens_to_score(output_seq)
 
@@ -137,6 +137,9 @@ def infill_bars(
         output_ids = output_ids[0].numpy()
 
         fill_start_idx = np.where(output_ids == tokenizer.vocab["FillBar_Start"])[0][0]
+
+        ########### TESTED UP TO HERE ##########
+
         fill_end_idx = np.where(output_ids == tokenizer.vocab["FillBar_End"])[0][0]
         infill_bar_idxs = np.where(output_ids == tokenizer.vocab["Infill_Bar"])[0]
 
