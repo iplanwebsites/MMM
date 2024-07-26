@@ -96,7 +96,6 @@ from utils.constants import (
     WEIGHT_DECAY,
 )
 from utils.data_loading import DatasetMMM
-from utils.utils import path_data_directory_local_fs
 
 if TYPE_CHECKING:
     from datasets import Dataset
@@ -134,6 +133,7 @@ def is_score_valid(
     )
 
 
+# TODO seq2seq
 class MMMBaseline(Baseline):
     """MMM model baseline."""
 
@@ -157,10 +157,13 @@ class MMMBaseline(Baseline):
                     trust_remote_code=True,
                 )
             except PermissionError:
-                path = str(
-                    path_data_directory_local_fs() / ".hf_cache" / "datasets"
-                )  # TODO adapt for local
-                os.system(f"chown -R 777 {path}")  # noqa:S605
+                path = os.getenv("SLURM_TMPDIR")
+                if path is not None:
+                    path = Path(path, ".hf_cache")
+                else:
+                    path = Path(os.getenv("HOME"), ".cache", "huggingface")
+                path = str(path / "datasets")
+                os.system(f"chmod -R 777 {path}")  # noqa:S605
 
     def create_data_subsets(self) -> dict[str, DatasetMMM]:
         """

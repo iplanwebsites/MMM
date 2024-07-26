@@ -66,10 +66,12 @@ export LAUNCHER="torchrun \
     "
 
 # Load the python environment
-module load gcc arrow/17.0.0
+module load gcc arrow/17.0.0  # needed since arrow can't be installed in the venv via pip
 source .venv/bin/activate
 
 # Run the training
-srun --jobid "$SLURM_JOBID" bash -c "$LAUNCHER scripts/train_model.py $MODEL_TRAIN_ARGS"
+# Tensorboard can be access by running (with computenode replaced with the node hostname):
+# ssh -N -f -L localhost:6006:computenode:6006 userid@narval.computecanada.ca
+tensorboard --logdir=runs/MMMBaseline_GigaMIDI --host 0.0.0.0 --load_fast false & srun --jobid "$SLURM_JOBID" bash -c "$LAUNCHER scripts/train_model.py $MODEL_TRAIN_ARGS"
 
 echo "END TIME: $(date)"
