@@ -3,7 +3,7 @@
 name = "MMM"
 version = "0.0.1"
 dependencies = [
-    "numpy>=1.19",
+    "numpy==1.26.3",
     "miditok @ git+https://github.com/Natooz/MidiTok",
     "transformers~=4.41.2",
     "torch>=2.3.0",

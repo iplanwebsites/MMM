@@ -55,7 +55,7 @@ TOKENIZER_PARAMS = {
 
 GENERATION_CONFIG_PARAMS = {
     "max_length": 99999, #We have to override this as it is set to 20 tokens max by default!
-    "max_new_tokens": 2, #This is just for testing purposes
+    "max_new_tokens": 3, #This is just for testing purposes
     "use_cache": True, #To allow reuse of past_key_values to speed up computation
     "temperature": 1.0,
     "top_k": 50, #(default value)

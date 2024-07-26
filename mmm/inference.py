@@ -127,13 +127,14 @@ def infill_bars(
 
     :return: Infilled TokSequence
     """
-    # For each set of bars to infill in the track. We may have, in the same track, non-adjacent sequences of bars. For
-    # each sequence, we do a generation step.
+    # For each set of bars to infill in the track, we generate new content
+    # (We may have, in the same track, non-adjacent sequences of bars. For
+    # each sequence, we do a generation step).
     for subset_bars_to_infill in (inference_config.bars_to_generate[track_idx]):
         input_seq = generate_infill_prompt(tokenizer, track_idx, inference_config, tokens, subset_bars_to_infill)
 
         output_ids = model.generate(torch.tensor([input_seq.ids]), GenerationConfig(**GENERATION_CONFIG_PARAMS))
-        output_ids = np.array(output_ids)
+        output_ids = output_ids[0].numpy()
 
         fill_start_idx = np.where(output_ids == tokenizer.vocab["FillBar_Start"])[0][0]
         fill_end_idx = np.where(output_ids == tokenizer.vocab["FillBar_End"])[0][0]
@@ -141,10 +142,10 @@ def infill_bars(
 
         replacing_tokens = TokSequence()
 
-        replacing_tokens.ids.append(tokenizer.vocab["Bar_None"])
-        replacing_tokens.tokens.append("Bar_None")
-        replacing_tokens.ids += output_ids[fill_start_idx:fill_end_idx]
-        replacing_tokens.tokens += tokenizer._ids_to_tokens(output_ids[fill_start_idx:fill_end_idx].tolist())
+        #replacing_tokens.ids.append(tokenizer.vocab["Bar_None"])
+        #replacing_tokens.tokens.append("Bar_None")
+        replacing_tokens.ids += output_ids[fill_start_idx+1:fill_end_idx]
+        replacing_tokens.tokens += tokenizer._ids_to_tokens(output_ids[fill_start_idx+1:fill_end_idx].tolist())
 
         # I assume the model will generate Bar_None at the right position
 
