@@ -28,6 +28,7 @@ def generate(
     """
     score = symusic.Score(input_midi_path)
 
+    # Infill bars and generate new tracks
     if inference_config.infilling:
         score = generate_infilling(model, tokenizer, inference_config, score)
     if inference_config.autoregressive:
@@ -145,13 +146,7 @@ def infill_bars(
         replacing_tokens.ids += output_ids[fill_start_idx:fill_end_idx]
         replacing_tokens.tokens += tokenizer._ids_to_tokens(output_ids[fill_start_idx:fill_end_idx].tolist())
 
-        #for i in range(subset_bars_to_infill[1] - subset_bars_to_infill[0]):
-
-        #    start_ticks = tokens._ticks_bars[subset_bars_to_infill[0]]
-        #    idxs = np.where( >= start_ticks + i*ticks_per_bars and <= start_ticks + (i+1)*ticks_per_bars)
-
-        #    bars_ticks = tokens._ticks_bars
-
+        # I assume the model will generate Bar_None at the right position
 
         return tokens[:infill_bar_idxs[0]] + replacing_tokens + tokens[infill_bar_idxs[-1]:fill_start_idx]
 
@@ -168,6 +163,7 @@ def generate_infill_prompt(tokenizer: MMM, track_idx: int, inference_config: Inf
     :param track_idx: index of the track to infill
     :param inference_config: contains information about which tracks and bars to generate and attribute controls
     :param tokens: TokSequence of the track to be infilled
+    :param subset_bars_to_infill: contains the indexes of the first and last bar to infill, plus a list of attribute controls
     """
     output_toksequence: TokSequence = TokSequence()
     for context_track_idx in inference_config.context_tracks:
