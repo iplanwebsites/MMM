@@ -8,7 +8,7 @@
 #SBATCH --error=logs/train-mmm_err.out
 #SBATCH --account=def-pasquier
 #SBATCH --mail-user=raa60@sfu.ca # Default mail
-#SBATCH --nodes=1            # total nb of nodes
+#SBATCH --nodes=2            # total nb of nodes
 #SBATCH --ntasks-per-node=1  # nb of tasks per node
 #SBATCH --gpus-per-node=a100:4
 #SBATCH --cpus-per-task=48   # nb of CPU cores per task
@@ -51,7 +51,7 @@ export TOKENIZERS_PARALLELISM=0
 # Move hugging face dataset from scratch to local file system
 # This is done on every nodes.
 # Docs: https://docs.alliancecan.ca/wiki/Using_node-local_storage
-srun --ntasks=$SLURM_NNODES --ntasks-per-node=1 mkdir $SLURM_TMPDIR/data && cp -r $SCRATCH/data/GigaMIDI $SLURM_TMPDIR/data/
+srun --ntasks=$SLURM_NNODES --ntasks-per-node=1 bash -c "mkdir $SLURM_TMPDIR/data && cp -r $SCRATCH/data/GigaMIDI $SLURM_TMPDIR/data/"
 
 # Set launcher command with params
 export LAUNCHER="torchrun \
