@@ -9,7 +9,7 @@ COUNT=0
 # Loop job until training is done
 while [ ! -f "$TEST_RESULTS_FILE" ];
 do
-    sbatch --wait slurm/train_mmm.sh
+    sbatch --wait slurm/train_model.sh
     mv "logs/train-mmm.out" "train-mmm_$COUNT.out"
     mv "logs/train-mmm_err.out" "train-mmm_${COUNT}_err.out"
     ((COUNT++))
