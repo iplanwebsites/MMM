@@ -134,7 +134,7 @@ def is_score_valid(
 
 
 # TODO seq2seq
-class MMMBaseline(Baseline):
+class MMM(Baseline):
     """MMM model baseline."""
 
     def create_dataset(self) -> Dataset:
@@ -316,7 +316,7 @@ generation_config = GenerationConfig(
 )
 
 # exp -> Model size, baseline -> pretrained + finetune
-mmm = MMMBaseline(
+mmm = MMM(
     "GigaMIDI",
     SEED,
     deepcopy(tok_config),
