@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from copy import deepcopy
 from pathlib import Path
 from random import choice, random, sample, shuffle, uniform
 from typing import TYPE_CHECKING
@@ -120,7 +121,9 @@ class DatasetMMM(DatasetMIDI):
         ]
         | None = None,
         sample_key_name: str = "input_ids",
+        decoder_key_name: str = "decoder_input_ids",
         labels_key_name: str = "labels",
+        seq2seq: bool = False,
     ) -> None:
         self._dataset = dataset
         self.ratio_random_tracks_range = ratio_random_tracks_range
@@ -133,6 +136,7 @@ class DatasetMMM(DatasetMIDI):
         self.bar_fill_ratio = bar_fill_ratio
         self.bar_masking_duration_ratio_range = bar_masking_duration_ratio_range
         self.ac_random_ratio_range = ac_random_ratio_range
+        self.seq2seq = seq2seq
 
         _paths = [
             Path(sample_["music"]["path"])
@@ -190,6 +194,10 @@ class DatasetMMM(DatasetMIDI):
             sample_key_name=sample_key_name,
             labels_key_name=labels_key_name,
         )
+        self._max_seq_len = self.max_seq_len - sum(
+            [1 for t in [bos_token_id, eos_token_id] if t is not None]
+        )
+        self.decoder_key_name = decoder_key_name
 
     def __getitem__(self, idx: int) -> dict[str, LongTensor]:
         """
@@ -214,7 +222,7 @@ class DatasetMMM(DatasetMIDI):
                 item[self.labels_key_name] = labels
             return item
 
-        tseq = self._tokenize_score(score)
+        tseq, decoder_input_ids = self._tokenize_score(score)
         # If not one_token_stream, we only take the first track/sequence
         token_ids = tseq.ids if self.tokenizer.one_token_stream else tseq[0].ids
         if self.func_to_get_labels is not None:
@@ -227,14 +235,18 @@ class DatasetMMM(DatasetMIDI):
         if self.func_to_get_labels is not None:
             item[self.labels_key_name] = labels
 
-        item[self.labels_key_name] = item[self.sample_key_name].clone()
+        if self.seq2seq:
+            item[self.decoder_key_name] = LongTensor(decoder_input_ids.ids)
+            item[self.labels_key_name] = item[self.decoder_key_name].clone()
+        else:
+            item[self.labels_key_name] = item[self.sample_key_name].clone()
         idx_tokens_to_discard = torch.isin(
             item[self.labels_key_name], self._token_ids_no_loss
         )
         item[self.labels_key_name][idx_tokens_to_discard] = -100
         return item
 
-    def _tokenize_score(self, score: Score) -> TokSequence:
+    def _tokenize_score(self, score: Score) -> tuple[TokSequence, TokSequence | None]:
         # Delete unused elements in order to compute the bar ticks that we will use,
         # otherwise if unused elements are at the end of the score they can give us
         # bar ticks exceeding the tokens
@@ -280,6 +292,7 @@ class DatasetMMM(DatasetMIDI):
             num_overlap_bars=0,
             min_seq_len=MIN_SEQ_LEN,
         )
+        score_chunks = [deepcopy(chunk) for chunk in score_chunks]
         shuffle(score_chunks)
 
         # Select the chunk to proceed with, augment and preprocess it while making sure
@@ -305,13 +318,20 @@ class DatasetMMM(DatasetMIDI):
                     self.tokenizer.vocab["Track_End"],
                 ],
                 tokens=["Track_Start", "Track_End"],
+            ), TokSequence(
+                ids=[self._infill_bar_start_token_id, self._infill_bar_end_token_id],
+                tokens=[
+                    self._infill_bar_start_token,
+                    self._infill_bar_end_token,
+                ],
             )
 
         # Need to preprocess here to know the number of tracks, i.e. sequences
-        bar_infilling = len(score.tracks) > 1 and random() < self.bar_fill_ratio
+        # If there is only one track, we do bar infilling as new track gen is not
+        # possible in seq2seq.
+        bar_infilling = len(score.tracks) == 1 or random() < self.bar_fill_ratio
         track_infilling_idx = None
         bar_tick_start, bar_tick_end, bar_section_length = None, None, None
-        ac_indexes = None
         if bar_infilling:
             track_infilling_idx = choice(list(range(len(score.tracks))))
             # ac_indexes contains random bar acs only for the section to infill
@@ -337,6 +357,32 @@ class DatasetMMM(DatasetMIDI):
             bar_tick_end = (
                 bars_ticks[bar_idx_end] if bar_idx_end < len(bars_ticks) else None
             )
+
+            # Set ac_indexes
+            acs_idx = sample(
+                population=self._ac_bars,
+                k=round(
+                    len(self._ac_bars) * uniform(*self.tracks_idx_random_ratio_range)
+                ),
+            )
+
+            ac_indexes = {
+                track_infilling_idx: {
+                    ac_idx: sample(
+                        population=list(
+                            range(
+                                bar_idx_start,
+                                bar_tick_end + 1 if bar_tick_end else len(bars_ticks),
+                            )
+                        ),
+                        k=round(
+                            bar_section_length
+                            * uniform(*self.tracks_idx_random_ratio_range)
+                        ),
+                    )
+                    for ac_idx in acs_idx
+                }
+            }
         else:
             # ac_indexes only contains random track acs for the last track
             acs_idx = sample(
@@ -356,11 +402,52 @@ class DatasetMMM(DatasetMIDI):
             concatenate_track_sequences=False,
         )
 
+        # Remove track sequences so that it doesn't exceed max_seq_len
+        # First remove track sequences that exceed the max_seq_len
+        if bar_infilling:
+            for i in reversed(range(len(sequences))):
+                if len(sequences[i]) > self._max_seq_len:
+                    if len(sequences) == 1 or i == track_infilling_idx:
+                        # Ideally this shouldn't happen
+                        # We could cut the length of the track_infilling_idx track but
+                        # it cannot be over bars to infill...
+                        return TokSequence(
+                            ids=[
+                                self.tokenizer.vocab["Track_Start"],
+                                self.tokenizer.vocab["Track_End"],
+                            ],
+                            tokens=["Track_Start", "Track_End"],
+                        ), TokSequence(
+                            ids=[
+                                self._infill_bar_start_token_id,
+                                self._infill_bar_end_token_id,
+                            ],
+                            tokens=[
+                                self._infill_bar_start_token,
+                                self._infill_bar_end_token,
+                            ],
+                        )
+                    del sequences[i]
+                    if i < track_infilling_idx != 0:
+                        track_infilling_idx -= 1
+            # Then makes sure that the sum of all sequences doesn't exceed max_seq_len
+            sequences_copy = deepcopy(sequences)
+            while sum(len(seq) for seq in sequences_copy) > self._max_seq_len:
+                population = list(range(len(sequences_copy)))
+                if track_infilling_idx:
+                    population.remove(track_infilling_idx)
+                idx_to_del = choice(population)
+                del sequences_copy[idx_to_del]
+                if track_infilling_idx and track_infilling_idx > idx_to_del:
+                    track_infilling_idx -= 1
+            sequences = sequences_copy
+
         # If doing bar infilling we place extract the bars and create place the
         # right infilling tokens
         # Otherwise (track infilling), there is nothing to do here. If a user wants to
         # create a new track, we'll just have to add Track_Start and Program tokens at
         # the end of the sequence and generate from here.
+        decoder_input_ids = None
         if bar_infilling:
             # Bar infilling
             # Extract token section of the bars to infill
@@ -392,7 +479,12 @@ class DatasetMMM(DatasetMIDI):
             seq_infill.tokens.insert(0, self._infill_bar_start_token)
             seq_infill.ids.append(self._infill_bar_end_token_id)
             seq_infill.tokens.append(self._infill_bar_end_token)
-            sequences.append(seq_infill)
+            # seq2seq --> decoder infill / concat seq before after
+            if self.seq2seq:
+                decoder_input_ids = seq_infill
+            else:
+                # Adding it at the end of the list that will be flattened
+                sequences.append(seq_infill)
 
             # Add BarInfill tokens + update sequences
             seq_before = sequences[track_infilling_idx][:token_idx_start]
@@ -401,6 +493,9 @@ class DatasetMMM(DatasetMIDI):
                 seq_before.tokens.append(self._infill_bar_token)
             seq_after = sequences[track_infilling_idx][token_idx_end:]
             sequences[track_infilling_idx] = seq_before + seq_after
+        else:
+            # There are always at least two sequences
+            decoder_input_ids = sequences.pop(choice(list(range(len(sequences)))))
 
         # TODO External labels: (non-)expressive, loops, genres to add to the seq
 
@@ -414,7 +509,7 @@ class DatasetMMM(DatasetMIDI):
             self.eos_token_id,
             enforce_eos_token_if_seq_len_exceed_lim=False,
         )
-        return tokseq
+        return tokseq, decoder_input_ids
 
     def augment_and_preprocess_score(self, score: Score) -> Score:
         """

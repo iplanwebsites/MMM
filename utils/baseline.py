@@ -17,7 +17,9 @@ from miditok.utils import get_bars_ticks
 from symusic import Score
 from transformers import (
     AutoModelForCausalLM,
+    AutoModelForSeq2SeqLM,
     GenerationConfig,
+    LongT5Config,
     MistralConfig,
 )
 
@@ -66,6 +68,8 @@ from utils.constants import (
     NUM_INFERENCES_EVAL,
     NUM_KEY_VALUE_HEADS,
     NUM_LAYERS,
+    NUM_LAYERS_SEQ2SEQ_DECODER,
+    NUM_LAYERS_SEQ2SEQ_ENCODER,
     NUM_TRAIN_EPOCHS,
     PUSH_TO_HF_HUB,
     RATIO_BAR_INFILLING,
@@ -133,9 +137,10 @@ def is_score_valid(
     )
 
 
-# TODO seq2seq
 class MMM(Baseline):
     """MMM model baseline."""
+
+    seq2seq: bool = False
 
     def create_dataset(self) -> Dataset:
         """
@@ -184,6 +189,7 @@ class MMM(Baseline):
                 ac_random_ratio_range=ACS_RANDOM_RATIO_RANGE,
                 ac_tracks_random_ratio_range=TRACKS_IDX_RANDOM_RATIO_RANGE,
                 ac_bars_random_ratio_range=BARS_IDX_RANDOM_RATIO_RANGE,
+                seq2seq=self.seq2seq,
             )
             for subset_name, subset in dataset.items()
         }
@@ -219,10 +225,13 @@ class MMM(Baseline):
             created untrained. (default: ``None``)
         """
         kwargs = {"attn_implementation": attn_implem, "torch_dtype": dtype}
+        auto_model_class = (
+            AutoModelForSeq2SeqLM if self.seq2seq else AutoModelForCausalLM
+        )
         if pretrained is not None:
-            model = AutoModelForCausalLM.from_pretrained(pretrained, **kwargs)
+            model = auto_model_class.from_pretrained(pretrained, **kwargs)
         else:
-            model = AutoModelForCausalLM.from_config(self.model_config, **kwargs)
+            model = auto_model_class.from_config(self.model_config, **kwargs)
         # model = BetterTransformer.transform(model, keep_original_model=False)
         model.generation_config = self.generation_config
         return model
@@ -289,7 +298,7 @@ data_config = DataConfig("music", DATA_AUGMENTATION_OFFSETS, MAX_SEQ_LEN)
 tok_config = TokenizationConfig(
     "MMM", TokenizerConfig(**deepcopy(TOKENIZER_PARAMS)), VOCAB_SIZE
 )
-model_config = MistralConfig(
+mistral_config = MistralConfig(
     vocab_size=VOCAB_SIZE,
     hidden_size=EMBEDDING_SIZE,
     intermediate_size=FEEDFORWARD_SIZE,
@@ -300,6 +309,19 @@ model_config = MistralConfig(
     sliding_window=SLIDING_WINDOWS,
     use_cache=False,  # for gradient checkpointing during training
     attn_implementation=attn_implem,
+    torch_dtype=dtype,
+)
+t5_config = LongT5Config(
+    vocab_size=VOCAB_SIZE,
+    d_model=EMBEDDING_SIZE,
+    d_kv=EMBEDDING_SIZE // NUM_ATTENTION_HEADS,
+    d_ff=FEEDFORWARD_SIZE,
+    num_layers=NUM_LAYERS_SEQ2SEQ_ENCODER,
+    num_decoder_layers=NUM_LAYERS_SEQ2SEQ_DECODER,
+    num_heads=NUM_ATTENTION_HEADS,
+    local_radius=SLIDING_WINDOWS,
+    use_cache=False,  # for gradient checkpointing during training
+    # attn_implementation=attn_implem,  # not implemented for T5Long
     torch_dtype=dtype,
 )
 generation_config = GenerationConfig(
@@ -317,11 +339,24 @@ generation_config = GenerationConfig(
 
 # exp -> Model size, baseline -> pretrained + finetune
 mmm = MMM(
+    "MMM_Mistral",
     "GigaMIDI",
     SEED,
     deepcopy(tok_config),
-    deepcopy(model_config),
+    deepcopy(mistral_config),
     deepcopy(training_config_kwargs),
     deepcopy(data_config),
     deepcopy(generation_config),
 )
+
+mmm_seq2seq = MMM(
+    "MMM_seq2seq",
+    "GigaMIDI",
+    SEED,
+    deepcopy(tok_config),
+    deepcopy(t5_config),
+    deepcopy(training_config_kwargs),
+    deepcopy(data_config),
+    deepcopy(generation_config),
+)
+mmm_seq2seq.seq2seq = True

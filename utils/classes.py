@@ -105,6 +105,7 @@ class Baseline(ABC):
         tokens when evaluating/testing the model.
     """
 
+    name: str
     dataset: str
     seed: int
     tokenization_config: TokenizationConfig
@@ -139,15 +140,6 @@ class Baseline(ABC):
                 self.tokenization_config.tokenizer_config
             )
         return tokenizer
-
-    @property
-    def name(self) -> str:
-        """
-        Return the name of the baseline based on its distinct attributes.
-
-        :return: name of the baseline.
-        """
-        return f"{type(self).__name__}_{self.dataset}"
 
     @property
     def tokenization(self) -> str:

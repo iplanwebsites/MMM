@@ -149,6 +149,7 @@ def whole_training_process(
         train_dataset=subsets["train"],
         eval_dataset=subsets["validation"],
         compute_metrics=compute_metrics,
+        preprocess_logits_for_metrics=preprocess_logits,
     )
     if not is_training_done(baseline.run_path):
         train_model(trainer)
