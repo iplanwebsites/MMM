@@ -434,7 +434,7 @@ class DatasetMMM(DatasetMIDI):
             sequences_copy = deepcopy(sequences)
             while sum(len(seq) for seq in sequences_copy) > self._max_seq_len:
                 population = list(range(len(sequences_copy)))
-                if track_infilling_idx:
+                if track_infilling_idx is not None:
                     population.remove(track_infilling_idx)
                 idx_to_del = choice(population)
                 del sequences_copy[idx_to_del]
