@@ -152,9 +152,11 @@ class DatasetMMM(DatasetMIDI):
         self._infill_bar_token = "Infill_Bar"
         self._infill_bar_start_token = "FillBar_Start"
         self._infill_bar_end_token = "FillBar_End"
+        self._infill_track_token = "Infill_Track"
         self._infill_bar_token_id = tokenizer.vocab["Infill_Bar"]
         self._infill_bar_start_token_id = tokenizer.vocab["FillBar_Start"]
         self._infill_bar_end_token_id = tokenizer.vocab["FillBar_End"]
+        self._infill_track_token_id = tokenizer.vocab["Infill_Track"]
 
         # Token ids that should be masked from the "labels" entry so that the loss is
         # not computed other them. Doing so, the model will not be trained to predict
@@ -493,9 +495,13 @@ class DatasetMMM(DatasetMIDI):
                 seq_before.tokens.append(self._infill_bar_token)
             seq_after = sequences[track_infilling_idx][token_idx_end:]
             sequences[track_infilling_idx] = seq_before + seq_after
-        else:
+        # If seq2seq, the last track sequence is fed to the decoder and a `Infill_Track`
+        # token is appended to the encoder input sequence
+        elif self.seq2seq:
             # There are always at least two sequences
             decoder_input_ids = sequences.pop(choice(list(range(len(sequences)))))
+            sequences[-1].tokens.append(self._infill_track_token)
+            sequences[-1].ids.append(self._infill_track_token_id)
 
         # TODO External labels: (non-)expressive, loops, genres to add to the seq
 

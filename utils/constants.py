@@ -25,6 +25,7 @@ TOKENIZER_PARAMS = {
         "BOS",
         "EOS",
         "Infill_Bar",  # Indicate a bar to be filled in a seq
+        "Infill_Track",  # Using in seq2seq to instruct the decoder to gen a new track
         "FillBar_Start",  # Start of the infilled Bar
         "FillBar_End",
     ],
@@ -153,6 +154,8 @@ ETA_CUTOFF = None
 EMBEDDING_SIZE = 64
 FEEDFORWARD_SIZE = EMBEDDING_SIZE * 4
 NUM_LAYERS = 2
+NUM_LAYERS_SEQ2SEQ_ENCODER = 2
+NUM_LAYERS_SEQ2SEQ_DECODER = 2
 NUM_ATTENTION_HEADS = 4
 NUM_KEY_VALUE_HEADS = NUM_ATTENTION_HEADS // 2
 SLIDING_WINDOWS = 128

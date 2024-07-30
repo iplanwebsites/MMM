@@ -321,6 +321,7 @@ t5_config = LongT5Config(
     num_heads=NUM_ATTENTION_HEADS,
     local_radius=SLIDING_WINDOWS,
     use_cache=False,  # for gradient checkpointing during training
+    decoder_start_token_id=0,  # padding token
     # attn_implementation=attn_implem,  # not implemented for T5Long
     torch_dtype=dtype,
 )

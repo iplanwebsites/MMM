@@ -106,6 +106,47 @@ from datasets import load_dataset
 dataset = load_dataset("Metacreation/GigaMIDI", "music", trust_remote_code=True, split="train")
 ```
 
+The dataset can be [processed](https://huggingface.co/docs/datasets/process) by using the `dataset.map` and  `dataset.filter` methods.
+
+```Python
+from pathlib import Path
+from datasets import load_dataset
+from miditok.constants import SCORE_LOADING_EXCEPTION
+from miditok.utils import get_bars_ticks
+from symusic import Score
+
+def is_score_valid(
+    score: Score | Path | bytes, min_num_bars: int, min_num_notes: int
+) -> bool:
+    """
+    Check if a ``symusic.Score`` is valid, contains the minimum required number of bars.
+
+    :param score: ``symusic.Score`` to inspect or path to a MIDI file.
+    :param min_num_bars: minimum number of bars the score should contain.
+    :param min_num_notes: minimum number of notes that score should contain.
+    :return: boolean indicating if ``score`` is valid.
+    """
+    if isinstance(score, Path):
+        try:
+            score = Score(score)
+        except SCORE_LOADING_EXCEPTION:
+            return False
+    elif isinstance(score, bytes):
+        try:
+            score = Score.from_midi(score)
+        except SCORE_LOADING_EXCEPTION:
+            return False
+
+    return (
+        len(get_bars_ticks(score)) >= min_num_bars and score.note_num() > min_num_notes
+    )
+
+dataset = load_dataset("Metacreation/GigaMIDI", "music", trust_remote_code=True, split="train")
+dataset = dataset.filter(
+    lambda ex: is_score_valid(ex["music"]["bytes"], min_num_bars=8, min_num_notes=50)
+)
+```
+
 ## Dataset Structure
 
 ### Data Instances
@@ -121,7 +162,7 @@ A data sample indexed from the dataset may look like this (the `bytes` entry is 
     'music': {'path': '/Users/nathan/.cache/huggingface/datasets/downloads/extracted/cc8e36bbe8d5ec7ecf1160714d38de3f2f670c13bc83e0289b2f1803f80d2970/0211bbf6adf0cf10d42117e5929929a4.mid', 'bytes': b"MThd\x00\x00\x00\x06\x00\x01\x00\x05\x01\x00MTrk\x00"},
     'is_drums': False,
     'sid_matches': {'sid': ['065TU5v0uWSQmnTlP5Cnsz', '29OG7JWrnT0G19tOXwk664', '2lL9TiCxUt7YpwJwruyNGh'], 'score': [0.711, 0.8076, 0.8315]},
-    'mbid_matches': {'mbid': ['065TU5v0uWSQmnTlP5Cnsz', '29OG7JWrnT0G19tOXwk664', '2lL9TiCxUt7YpwJwruyNGh'], 'score': [0.711, 0.8076, 0.8315]},
+    'mbid_matches': {'sid': ['065TU5v0uWSQmnTlP5Cnsz', '29OG7JWrnT0G19tOXwk664', '2lL9TiCxUt7YpwJwruyNGh'], 'mbids': [['43d521a9-54b0-416a-b15e-08ad54982e63', '70645f54-a13d-4123-bf49-c73d8c961db8', 'f46bba68-588f-49e7-bb4d-e321396b0d8e'], ['43d521a9-54b0-416a-b15e-08ad54982e63', '70645f54-a13d-4123-bf49-c73d8c961db8'], ['3a4678e6-9d8f-4379-aa99-78c19caf1ff5']]},
     'artist_scraped': 'Bach, Johann Sebastian',
     'title_scraped': 'Contrapunctus 1 from Art of Fugue',
     'genres_scraped': ['classical', 'romantic'],
@@ -134,66 +175,27 @@ A data sample indexed from the dataset may look like this (the `bytes` entry is 
 
 ### Data Fields
 
+The GigaMIDI dataset comprises the [MetaMIDI dataset](https://www.metacreation.net/projects/metamidi-dataset). Consequently, the GigaMIDI dataset also contains its [metadata](https://github.com/jeffreyjohnens/MetaMIDIDataset) which we compiled here in a convenient and easy to use dataset format. The fields of each data entry are:
+
 * `md5` (`string`): hash the MIDI file, corresponding to its file name;
-* `music` (`dict`): a dictionary containing the absolute `path` to the downloaded file and the file content as `bytes`;
+* `music` (`dict`): a dictionary containing the absolute `path` to the downloaded file and the file content as `bytes` to be loaded with an external Python package such as symusic;
 * `is_drums` (`boolean`): whether the sample comes from the `drums` subset, this can be useful when working with the `all` subset;
-* `sid_matches` (`dict[str, list[str] | list[float16]]`):
-* `mbid_matches` (`dict[str, list[str] | list[float16]]`):
-* `artist_scraped` (`string`):
-* `title_scraped` (`string`):
-* `genres_scraped` (`list[str]`):
-* `genres_discogs` (`dict[str, list[str] | list[int16]]`):
-* `genres_tagtraum` (`dict[str, list[str] | list[int16]]`):
-* `genres_lastfm` (`dict[str, list[str] | list[int16]]`):
+* `sid_matches` (`dict[str, list[str] | list[float16]]`): ids of the Spotify entries matched and their scores.
+* `mbid_matches` (`dict[str, str | list[str]]`): ids of the MusicBrainz entries matched with the Spotify entries.
+* `artist_scraped` (`string`): scraped artist of the entry;
+* `title_scraped` (`string`): scraped song title of the entry;
+* `genres_scraped` (`list[str]`): scraped genres of the entry;
+* `genres_discogs` (`dict[str, list[str] | list[int16]]`): Discogs genres matched from the [AcousticBrainz dataset](https://multimediaeval.github.io/2018-AcousticBrainz-Genre-Task/data/);
+* `genres_tagtraum` (`dict[str, list[str] | list[int16]]`): Tagtraum genres matched from the [AcousticBrainz dataset](https://multimediaeval.github.io/2018-AcousticBrainz-Genre-Task/data/);
+* `genres_lastfm` (`dict[str, list[str] | list[int16]]`): Lastfm genres matched from the [AcousticBrainz dataset](https://multimediaeval.github.io/2018-AcousticBrainz-Genre-Task/data/);
 * `median_metric_depth` (`list[int16]`):
 <!--* `loop` (`string`): -->
 
 ### Data Splits
 
-The speech material has been subdivided into portions for dev, train, test, validated, invalidated, reported and other.
+The dataset has been subdivided into portions for training (`train`), validation (`validation`) and testing (`test`).
 
-The validated data has been validated with reviewers and received upvotes indicating that it is of high quality.
-
-The invalidated data is data that has been invalidated by reviewers
-and received downvotes indicating that the data is of low quality.
-
-The reported data is data that has been reported for different reasons.
-
-The other data is data that has not yet been reviewed.
-
-The dev, test, and train are all data that have been reviewed, deemed of high quality, and split into dev, test, and train.
-
-## Data Preprocessing Recommended by Hugging Face
-
-The following are data preprocessing steps advised by the Hugging Face team. They are accompanied by an example code snippet that shows how to put them to practice.
-
-Many examples in this dataset have trailing quotations marks, e.g _“the cat sat on the mat.“_. These trailing quotation marks do not change the actual meaning of the sentence, and it is near impossible to infer whether a sentence is a quotation or not a quotation from audio data alone. In these cases, it is advised to strip the quotation marks, leaving: _the cat sat on the mat_.
-
-In addition, the majority of training sentences end in punctuation ( . or ? or ! ), whereas just a small proportion do not. In the dev set, **almost all** sentences end in punctuation. Thus, it is recommended to append a full-stop ( . ) to the end of the small number of training examples that do not end in punctuation.
-
-```python
-from datasets import load_dataset
-
-ds = load_dataset("Metacreation/GigaMIDI", "music", trust_remote_code=True)
-
-def prepare_dataset(batch):
-  """Function to preprocess the dataset with the .map method"""
-  transcription = batch["sentence"]
-
-  if transcription.startswith('"') and transcription.endswith('"'):
-    # we can remove trailing quotation marks as they do not affect the transcription
-    transcription = transcription[1:-1]
-
-  if transcription[-1] not in [".", "?", "!"]:
-    # append a full-stop to sentences that do not end in punctuation
-    transcription = transcription + "."
-
-  batch["sentence"] = transcription
-
-  return batch
-
-ds = ds.map(prepare_dataset, desc="preprocess dataset")
-```
+The validation and test splits contain each 10% of the dataset, while the training split contains the rest (about 80%).
 
 ## Dataset Creation
 
@@ -221,15 +223,7 @@ ds = ds.map(prepare_dataset, desc="preprocess dataset")
 
 [Needs More Information]
 
-### Personal and Sensitive Information
-
-The dataset consists of people who have donated their voice online.  You agree to not attempt to determine the identity of speakers in the Common Voice dataset.
-
 ## Considerations for Using the Data
-
-### Social Impact of Dataset
-
-The dataset consists of people who have donated their voice online.  You agree to not attempt to determine the identity of speakers in the Common Voice dataset.
 
 ### Discussion of Biases
 
@@ -252,11 +246,6 @@ Public Domain, [CC-0](https://creativecommons.org/share-your-work/public-domain/
 <!--### Citation Information
 
 ```
-@inproceedings{commonvoice:2020,
-  author = {Ardila, R. and Branson, M. and Davis, K. and Henretty, M. and Kohler, M. and Meyer, J. and Morais, R. and Saunders, L. and Tyers, F. M. and Weber, G.},
-  title = {Common Voice: A Massively-Multilingual Speech Corpus},
-  booktitle = {Proceedings of the 12th Conference on Language Resources and Evaluation (LREC 2020)},
-  pages = {4211--4215},
-  year = 2020
+@inproceedings{
 }
 ```-->
