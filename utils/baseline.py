@@ -353,7 +353,7 @@ mmm = MMM(
 )
 
 mmm_seq2seq = MMM(
-    "MMM_seq2seq",
+    "MMM_T5",
     "GigaMIDI",
     SEED,
     deepcopy(tok_config),
