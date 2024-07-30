@@ -137,7 +137,9 @@ if __name__ == "__main__":
     # Train the tokenizer
     dataset_ = mmm.create_dataset()["train"]
     dataset_.shuffle()
-    dataset_ = dataset_[:TRAINING_TOKENIZER_MAX_NUM_FILES]
+    dataset_ = mmm.preprocess_dataset(dataset_).select(
+        list(range(TRAINING_TOKENIZER_MAX_NUM_FILES))
+    )
     iterator = TokTrainingIterator(mmm.tokenizer, dataset_)
     mmm.tokenizer.train(
         vocab_size=mmm.tokenization_config.vocab_size,

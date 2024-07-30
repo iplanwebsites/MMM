@@ -133,7 +133,9 @@ def is_score_valid(
             return False
 
     return (
-        len(get_bars_ticks(score)) >= min_num_bars and score.note_num() > min_num_notes
+        score.start() >= 0
+        and len(get_bars_ticks(score)) >= min_num_bars
+        and score.note_num() > min_num_notes
     )
 
 
