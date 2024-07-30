@@ -3,9 +3,9 @@
 # Inspired from https://github.com/bigscience-workshop/bigscience/blob/7ccf7e42577fe71e88cf8bed3b9ca965c7afb8f7/train/tr11-176B-ml/tr11-176B-ml.slurm
 
 # Set SLURM / hardware environment
-#SBATCH --job-name=train-Mistral
-#SBATCH --output=logs/train-Mistral.out
-#SBATCH --error=logs/train-Mistral_err.out
+#SBATCH --job-name=train-mistral
+#SBATCH --output=logs/train-mistral.out
+#SBATCH --error=logs/train-mistral_err.out
 #SBATCH --account=def-pasquier
 #SBATCH --mail-user=raa60@sfu.ca # Default mail
 #SBATCH --nodes=2            # total nb of nodes
