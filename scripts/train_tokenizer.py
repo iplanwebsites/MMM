@@ -135,7 +135,7 @@ if __name__ == "__main__":
     set_seed(mmm.seed)
 
     # Train the tokenizer
-    dataset_ = mmm.create_data_subsets()["train"]
+    dataset_ = mmm.create_dataset()["train"]
     dataset_.shuffle()
     dataset_ = dataset_[:TRAINING_TOKENIZER_MAX_NUM_FILES]
     iterator = TokTrainingIterator(mmm.tokenizer, dataset_)

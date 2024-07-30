@@ -128,10 +128,10 @@ def create_webdataset_gigamidi(main_data_dir_path: Path) -> None:
                     if sid_matches:
                         metadata_row["sid_matches"] = sid_matches
                         metadata_row["mbid_matches"] = []
-                        for sid, score in sid_matches:
-                            mbid = sid_to_mbid.get(sid, None)
-                            if mbid:
-                                metadata_row["mbid_matches"].append([mbid, score])
+                        for sid, _ in sid_matches:
+                            mbids = sid_to_mbid.get(sid, None)
+                            if mbids:
+                                metadata_row["mbid_matches"].append([sid, mbids])
 
                     title_artist = md5_artist_title_scraped.get(md5)
                     if title_artist:
@@ -186,7 +186,7 @@ def load_dataset_from_generator(
 if __name__ == "__main__":
     from argparse import ArgumentParser
 
-    from utils.utils import path_main_data_directory
+    from utils.utils import path_data_directory_local_fs
 
     parser = ArgumentParser(description="Dataset creation script")
     parser.add_argument(
@@ -195,7 +195,7 @@ if __name__ == "__main__":
     parser.add_argument("--hf-token", type=str, required=False, default=None)
     args = vars(parser.parse_args())
 
-    create_webdataset_gigamidi(path_main_data_directory())
+    create_webdataset_gigamidi(path_data_directory_local_fs())
 
     """dataset_ = load_dataset(
         args["hf_repo_name"], "music", token=args["hf_token"], trust_remote_code=True

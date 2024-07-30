@@ -15,11 +15,33 @@
 #SBATCH --mem=200G
 #SBATCH --time=24:00:00
 
+# Parse arguments
+POSITIONAL_ARGS=()
+while [[ $# -gt 0 ]]; do
+  case $1 in
+    -m|--model)
+      MODEL="$2"
+      shift # past argument
+      shift # past value
+      ;;
+    -*|--*)
+      echo "Unknown option $1"
+      exit 1
+      ;;
+    *)
+      POSITIONAL_ARGS+=("$1") # save positional arg
+      shift # past argument
+      ;;
+  esac
+done
+set -- "${POSITIONAL_ARGS[@]}" # restore positional parameters
+
 # Define args
 MODEL_TRAIN_ARGS=" \
     --deepspeed \
     --per-device-train-batch-size 8 \
     --per-device-eval-batch-size 16 \
+    --model ${MODEL} \
     "
 
 # Output GPUs and ram info
@@ -72,6 +94,6 @@ source .venv/bin/activate
 # Run the training
 # Tensorboard can be access by running (with computenode replaced with the node hostname):
 # ssh -N -f -L localhost:6006:computenode:6006 userid@narval.computecanada.ca
-tensorboard --logdir=runs/MMMBaseline_GigaMIDI --host 0.0.0.0 --load_fast false & srun --jobid "$SLURM_JOBID" bash -c "$LAUNCHER scripts/train_model.py $MODEL_TRAIN_ARGS"
+tensorboard --logdir=runs --host 0.0.0.0 --load_fast false & srun --jobid "$SLURM_JOBID" bash -c "$LAUNCHER scripts/train_model.py $MODEL_TRAIN_ARGS"
 
 echo "END TIME: $(date)"

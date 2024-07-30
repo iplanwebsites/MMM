@@ -31,7 +31,10 @@ _METADATA_FEATURES = {
         {"sid": datasets.Value("string"), "score": datasets.Value("float16")}
     ),
     "mbid_matches": datasets.Sequence(
-        {"mbid": datasets.Value("string"), "score": datasets.Value("float16")}
+        {
+            "sid": datasets.Value("string"),
+            "mbids": datasets.Sequence(datasets.Value("string")),
+        }
     ),
     "artist_scraped": datasets.Value("string"),
     "title_scraped": datasets.Value("string"),
@@ -247,8 +250,8 @@ class GigaMIDI(datasets.GeneratorBasedBuilder):
                                 for sid, score in metadata_.get("sid_matches", [])
                             ],
                             "mbid_matches": [
-                                {"mbid": sid, "score": score}
-                                for sid, score in metadata_.get("sid_matches", [])
+                                {"sid": sid, "mbids": mbids}
+                                for sid, mbids in metadata_.get("mbid_matches", [])
                             ],
                             "artist_scraped": metadata_.get("artist_scraped", None),
                             "title_scraped": metadata_.get("title_scraped", None),
