@@ -24,14 +24,14 @@ done
 set -- "${POSITIONAL_ARGS[@]}" # restore positional parameters
 
 # Set vars
-TEST_RESULTS_FILE="runs/${MODEL}/train_results.json"
+TEST_RESULTS_FILE="runs/MMM_${MODEL}/train_results.json"
 COUNT=0
 
 # Loop job until training is done
 while [ ! -f "$TEST_RESULTS_FILE" ];
 do
     sbatch --wait slurm/train_model.sh --model ${MODEL}
-    mv "logs/train-mmm.out" "logs/train-mmm_$COUNT.out"
-    mv "logs/train-mmm_err.out" "logs/train-mmm_${COUNT}_err.out"
+    mv "logs/train-${MODEL}.out" "logs/train-${MODEL}_${COUNT}.out"
+    mv "logs/train-${MODEL}_err.out" "logs/train-${MODEL}_${COUNT}_err.out"
     ((COUNT++))
 done
