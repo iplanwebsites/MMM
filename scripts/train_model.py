@@ -32,6 +32,12 @@ if __name__ == "__main__":
         required=False,
         default=None,
     )
+    parser.add_argument(
+        "--gradient-accumulation-steps",
+        type=int,
+        required=False,
+        default=None,
+    )
     parser.add_argument("--hf-repo-name", type=str, required=False, default=None)
     parser.add_argument("--hf-token", type=str, required=False, default=None)
     args = vars(parser.parse_args())
@@ -45,7 +51,11 @@ if __name__ == "__main__":
                 baseline.training_config_kwargs["hub_token"] = args["hf_token"]
             if args["deepspeed"]:
                 baseline.training_config_kwargs["deepspeed"] = "slurm/ds_config.json"
-            for attr in ("per_device_train_batch_size", "per_device_eval_batch_size"):
+            for attr in (
+                "per_device_train_batch_size",
+                "per_device_eval_batch_size",
+                "gradient_accumulation_steps",
+            ):
                 if args[attr]:
                     baseline.training_config_kwargs[attr] = args[attr]
             baseline.training_config_kwargs["torch_compile"] = args["torch_compile"]

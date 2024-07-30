@@ -3,9 +3,9 @@
 # Inspired from https://github.com/bigscience-workshop/bigscience/blob/7ccf7e42577fe71e88cf8bed3b9ca965c7afb8f7/train/tr11-176B-ml/tr11-176B-ml.slurm
 
 # Set SLURM / hardware environment
-#SBATCH --job-name=train-mmm
-#SBATCH --output=logs/train-mmm.out
-#SBATCH --error=logs/train-mmm_err.out
+#SBATCH --job-name=train-Mistral
+#SBATCH --output=logs/train-Mistral.out
+#SBATCH --error=logs/train-Mistral_err.out
 #SBATCH --account=def-pasquier
 #SBATCH --mail-user=raa60@sfu.ca # Default mail
 #SBATCH --nodes=2            # total nb of nodes
@@ -15,33 +15,12 @@
 #SBATCH --mem=200G
 #SBATCH --time=24:00:00
 
-# Parse arguments
-POSITIONAL_ARGS=()
-while [[ $# -gt 0 ]]; do
-  case $1 in
-    -m|--model)
-      MODEL="$2"
-      shift # past argument
-      shift # past value
-      ;;
-    -*|--*)
-      echo "Unknown option $1"
-      exit 1
-      ;;
-    *)
-      POSITIONAL_ARGS+=("$1") # save positional arg
-      shift # past argument
-      ;;
-  esac
-done
-set -- "${POSITIONAL_ARGS[@]}" # restore positional parameters
-
 # Define args
 MODEL_TRAIN_ARGS=" \
     --deepspeed \
     --per-device-train-batch-size 8 \
     --per-device-eval-batch-size 16 \
-    --model ${MODEL} \
+    --model MMM_Mistral \
     "
 
 # Output GPUs and ram info
