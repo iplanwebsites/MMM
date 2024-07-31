@@ -1,6 +1,8 @@
 """Tests for MMM inference."""
 
-from pathlib import Path
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 import pytest
 from miditok import MMM, TokenizerConfig
@@ -13,6 +15,9 @@ from utils.constants import (
     SLIDING_WINDOWS,
     TOKENIZER_PARAMS,
 )
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 INFERENCE_CONFIG = InferenceConfig(
     {
@@ -40,12 +45,10 @@ MISTRAL_CONFIG = MistralConfig(
 def test_generate(
     tokenizer: MMM, inference_config: InferenceConfig, input_midi_path: str | Path
 ):
-    output_path = "./midis/generated_midi"
     MISTRAL_CONFIG.vocab_size = tokenizer.vocab_size
     generate(
         MistralForCausalLM(MISTRAL_CONFIG),
         tokenizer,
         inference_config,
         input_midi_path,
-        output_path,
     )
