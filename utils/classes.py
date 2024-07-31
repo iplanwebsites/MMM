@@ -52,22 +52,28 @@ class TokenizationConfig:
     tokenizer_config: miditok.TokenizerConfig
     vocab_size: int = None
 
+
 @dataclass
 class InferenceConfig:
     """
-    Specifies which bars will be infilled and which tracks will be generated. It also specifies
-    the list of attribute controls to control the generation. All tracks will be used to condition the generation.
+    Configuration for the inference of MMM.
 
-    :param bars_to_generate: dictionary of couples [track_idx, [bar_start, bar_end, list of Attribute Controls]],
-    where bar_start and bar_end are the extremes of the region to infill.
-    :param new_tracks: list of tuple containing the programs and attribute controls for the new tracks
+    Specifies which bars will be infilled and which tracks will be generated. It also
+    specifies the list of attribute controls to control the generation. All tracks will
+    be used to condition the generation.
+
+    :param bars_to_generate: dictionary of couples [track_idx, [bar_start, bar_end, list
+        of Attribute Controls]], where bar_start and bar_end are the extremes of the
+        region to infill.
+    :param new_tracks: list of tuple containing the programs and attribute controls for
+        the new tracks
     """
 
     bars_to_generate: dict[int, list[tuple[int, int, list[str]]]]
     new_tracks: list[tuple[int, list[str]]]
 
-    def __post_init__(self):
-        """Checks that the Inference config is consistent."""
+    def __post_init__(self) -> None:
+        """Check that the Inference config is consistent."""
         self.context_tracks = self.bars_to_generate.keys()
 
         if len(self.bars_to_generate) > 0:
@@ -84,7 +90,7 @@ class InferenceConfig:
                 raise ValueError(msg)
 
         if len(self.bars_to_generate) == 0 and len(self.new_tracks) == 0:
-            msg = "You must provide either tracks to infill or new tracks to be generated!"
+            msg = "You must provide either tracks to infill or new tracks to generate"
             raise ValueError(msg)
 
 

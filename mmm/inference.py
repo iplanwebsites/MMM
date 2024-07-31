@@ -1,13 +1,23 @@
-from pathlib import Path
+"""Inference method for the MMM model."""
+
+from __future__ import annotations
+
+import warnings
+from typing import TYPE_CHECKING
 
 import numpy as np
 import symusic
 import torch
-from utils.classes import InferenceConfig
-from utils.constants import GENERATION_CONFIG_PARAMS
 from miditok import MMM, TokSequence
 from symusic import Score
 from transformers import GenerationConfig, PreTrainedModel
+
+from utils.constants import GENERATION_CONFIG_PARAMS
+
+if TYPE_CHECKING:
+    from pathlib import Path
+
+    from utils.classes import InferenceConfig
 
 
 def generate(
@@ -15,16 +25,16 @@ def generate(
     tokenizer: MMM,
     inference_config: InferenceConfig,
     input_midi_path: str | Path,
-    output_midi_path: str | Path
-) -> None:
+) -> Score:
     """
-    Generate new midi content for the bars and tracks specified in inference_config, and writes it to a new MIDI file.
+    Use the model to generate new music content.
+
+    The method allows to infill specific bars or generate new tracks.
 
     :param model: model used for generation
     :param tokenizer: MMM tokenizer
     :param inference_config: InferenceConfig
     :param input_midi_path: path of the midi file to infill
-    :param output_midi_path: path of the output midi file
     """
     score = symusic.Score(input_midi_path)
 
@@ -35,11 +45,12 @@ def generate(
         for track in inference_config.new_tracks:
             score = generate_new_track(model, tokenizer, track, score)
 
-    # Reconstruct the midi output file.
-    score.dump_midi(output_midi_path)
+    return score
 
 
-def generate_new_track(model: PreTrainedModel, tokenizer: MMM, track: tuple[int, list[str]], score: Score) -> Score:
+def generate_new_track(
+    model: PreTrainedModel, tokenizer: MMM, track: tuple[int, list[str]], score: Score
+) -> Score:
     """
     Generate a new track of a given Score.
 
@@ -47,7 +58,8 @@ def generate_new_track(model: PreTrainedModel, tokenizer: MMM, track: tuple[int,
 
     :param model: model used for generation
     :param tokenizer: MMM tokenizer
-    :param track: tuple containing the program of the track and a list of Track Attribute Controls
+    :param track: tuple containing the program of the track and a list of Track
+        Attribute Controls.
     :param score: symusic.Score
     """
     # In this case, the prompt is a toksequence containing all the tracks
@@ -64,15 +76,20 @@ def generate_new_track(model: PreTrainedModel, tokenizer: MMM, track: tuple[int,
         input_seq.ids.append(tokenizer.vocab[control])
         input_seq.tokens.append(control)
 
-    output_ids = model.generate(torch.tensor([input_seq.ids]), GenerationConfig(**GENERATION_CONFIG_PARAMS))
+    output_ids = model.generate(
+        torch.tensor([input_seq.ids]), GenerationConfig(**GENERATION_CONFIG_PARAMS)
+    )
 
     output_seq = input_seq
     output_seq.ids = output_ids
-    output_seq.tokens += tokenizer._ids_to_tokens(output_ids[len(input_seq.tokens):])
+    output_seq.tokens += tokenizer._ids_to_tokens(output_ids[len(input_seq.tokens) :])
 
     # It is expected to have a <TRACK_END> token at the end of the sequence.
-    if (output_seq.tokens[-1] != "Track_End"):
-        print("Track generation failed: the model failed to predict a <TRACK_END> token")
+    if output_seq.tokens[-1] != "Track_End":
+        warnings.warn(
+            "Track generation failed: the model failed to predict a <TRACK_END> token",
+            stacklevel=2,
+        )
         output_seq.ids.append(tokenizer.vocab["Track_End"])
         output_seq.tokens.append("Track_End")
 
@@ -80,10 +97,10 @@ def generate_new_track(model: PreTrainedModel, tokenizer: MMM, track: tuple[int,
 
 
 def generate_infilling(
-        model: PreTrainedModel,
-        tokenizer: MMM,
-        inference_config: InferenceConfig,
-        score: Score
+    model: PreTrainedModel,
+    tokenizer: MMM,
+    inference_config: InferenceConfig,
+    score: Score,
 ) -> Score:
     """
     Generate a new portion of a ``symusic.Score``.
@@ -100,21 +117,21 @@ def generate_infilling(
     tracks_to_infill = inference_config.bars_to_generate.keys()
     input_tokens = tokenizer.encode(score, concatenate_track_sequences=False)
 
-    output_tokens = []
-    for track_to_infill in tracks_to_infill:
-        output_tokens.append(infill_bars(model, tokenizer, track_to_infill, inference_config,
-                                         input_tokens))
+    output_tokens = [
+        infill_bars(model, tokenizer, track_to_infill, inference_config, input_tokens)
+        for track_to_infill in tracks_to_infill
+    ]
 
     # Here we use the base tokenizer because output_tokens is a list of TokSequences
     return tokenizer.base_tokenizer._tokens_to_score(output_tokens)
 
 
 def infill_bars(
-        model: PreTrainedModel,
-        tokenizer: MMM,
-        track_idx: int,
-        inference_config: InferenceConfig,
-        tokens: TokSequence
+    model: PreTrainedModel,
+    tokenizer: MMM,
+    track_idx: int,
+    inference_config: InferenceConfig,
+    tokens: TokSequence,
 ) -> TokSequence:
     """
     Infill bars for the ''track_idx'' track.
@@ -122,7 +139,8 @@ def infill_bars(
     :param model: model used for generation
     :param tokenizer: MMM tokenizer
     :param track_idx: index of the track to infill
-    :param inference_config: contains information about which tracks and bars to generate
+    :param inference_config: contains information about which tracks and bars to
+        generate.
     :param tokens: TokSequence of the track to be infilled
 
     :return: Infilled TokSequence
@@ -130,10 +148,14 @@ def infill_bars(
     # For each set of bars to infill in the track, we generate new content
     # (We may have, in the same track, non-adjacent sequences of bars. For
     # each sequence, we do a generation step).
-    for subset_bars_to_infill in (inference_config.bars_to_generate[track_idx]):
-        input_seq = generate_infill_prompt(tokenizer, track_idx, inference_config, tokens, subset_bars_to_infill)
+    for subset_bars_to_infill in inference_config.bars_to_generate[track_idx]:
+        input_seq = generate_infill_prompt(
+            tokenizer, track_idx, inference_config, tokens, subset_bars_to_infill
+        )
 
-        output_ids = model.generate(torch.tensor([input_seq.ids]), GenerationConfig(**GENERATION_CONFIG_PARAMS))
+        output_ids = model.generate(
+            torch.tensor([input_seq.ids]), GenerationConfig(**GENERATION_CONFIG_PARAMS)
+        )
         output_ids = output_ids[0].numpy()
 
         fill_start_idx = np.where(output_ids == tokenizer.vocab["FillBar_Start"])[0][0]
@@ -145,29 +167,46 @@ def infill_bars(
 
         replacing_tokens = TokSequence()
 
-        #replacing_tokens.ids.append(tokenizer.vocab["Bar_None"])
-        #replacing_tokens.tokens.append("Bar_None")
-        replacing_tokens.ids += output_ids[fill_start_idx+1:fill_end_idx]
-        replacing_tokens.tokens += tokenizer._ids_to_tokens(output_ids[fill_start_idx+1:fill_end_idx].tolist())
+        # replacing_tokens.ids.append(tokenizer.vocab["Bar_None"])
+        # replacing_tokens.tokens.append("Bar_None")
+        replacing_tokens.ids += output_ids[fill_start_idx + 1 : fill_end_idx]
+        replacing_tokens.tokens += tokenizer._ids_to_tokens(
+            output_ids[fill_start_idx + 1 : fill_end_idx].tolist()
+        )
 
         # I assume the model will generate Bar_None at the right position
 
-        return tokens[:infill_bar_idxs[0]] + replacing_tokens + tokens[infill_bar_idxs[-1]:fill_start_idx]
+        return (
+            tokens[: infill_bar_idxs[0]]
+            + replacing_tokens
+            + tokens[infill_bar_idxs[-1] : fill_start_idx]
+        )
+    return tokens  # TODO finish this method
 
 
-def generate_infill_prompt(tokenizer: MMM, track_idx: int, inference_config: InferenceConfig,
-                           tokens: TokSequence, subset_bars_to_infill: tuple[int, int, list[str]]) -> TokSequence:
+def generate_infill_prompt(
+    tokenizer: MMM,
+    track_idx: int,
+    inference_config: InferenceConfig,
+    tokens: TokSequence,
+    subset_bars_to_infill: tuple[int, int, list[str]],
+) -> TokSequence:
     """
-    Constructs the prompt to be used as model's input. The sequence should have the "BAR_FILL" format:
-    <TRACK_START>...<TRACK_END>...<TRACKS_START>...<FILL_IN>...<FILL_IN>...
-    <TRACK_END>...<TRACK_START>...<TRACK_END><START_FILL>
+    Construct the prompt for bar infilling.
+
+    Constructs the prompt to be used as model's input. The sequence should have the
+    "BAR_FILL" format:
+    ``<TRACK_START>...<TRACK_END>...<TRACKS_START>...<FILL_IN>...<FILL_IN>...
+    <TRACK_END>...<TRACK_START>...<TRACK_END><START_FILL>``
     We have as many <FILL_IN> tokens as the number of bars we want to infill.
 
     :param tokenizer: MMM tokenizer
     :param track_idx: index of the track to infill
-    :param inference_config: contains information about which tracks and bars to generate and attribute controls
+    :param inference_config: contains information about which tracks and bars to
+        generate and attribute controls
     :param tokens: TokSequence of the track to be infilled
-    :param subset_bars_to_infill: contains the indexes of the first and last bar to infill, plus a list of attribute controls
+    :param subset_bars_to_infill: contains the indexes of the first and last bar to
+        infill, plus a list of attribute controls
     """
     output_toksequence: TokSequence = TokSequence()
     for context_track_idx in inference_config.context_tracks:
