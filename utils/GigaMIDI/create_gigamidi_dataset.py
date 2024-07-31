@@ -8,6 +8,7 @@ import json
 from typing import TYPE_CHECKING
 
 from datasets import Dataset
+from huggingface_hub import create_branch, upload_file
 from tqdm import tqdm
 from webdataset import ShardWriter
 
@@ -15,6 +16,8 @@ from utils.GigaMIDI.GigaMIDI import _SPLITS, _SUBSETS
 
 if TYPE_CHECKING:
     from pathlib import Path
+
+    from datasets import DatasetDict
 
 
 MAX_NUM_ENTRIES_PER_SHARD = 50000
@@ -183,6 +186,38 @@ def load_dataset_from_generator(
     return Dataset.from_dict({"music": [str(path_) for path_ in files_paths]})
 
 
+def convert_to_parquet(
+    dataset: DatasetDict, repo_id: str, token: str | None = None
+) -> None:
+    """
+    Convert a dataset to parquet files.
+
+    :param dataset: dataset to convert.
+    :param repo_id: id of the repo to upload the files.
+    :param token: token for authentication.
+    """
+    create_branch(
+        repo_id,
+        branch="refs/convert/parquet",
+        revision="main",
+        token=token,
+        repo_type="dataset",
+    )
+    files_to_push = []
+    for split, subset in dataset.items():
+        file_path = f"{split}.parquet"
+        subset.to_parquet(file_path)
+        upload_file(
+            path_or_fileobj=file_path,
+            path_in_repo=file_path,
+            repo_id=repo_id,
+            token=token,
+            revision="refs/convert/parquet",
+            repo_type="dataset",
+        )
+        files_to_push.append(file_path)
+
+
 if __name__ == "__main__":
     from argparse import ArgumentParser
 
@@ -199,7 +234,8 @@ if __name__ == "__main__":
 
     """dataset_ = load_dataset(
         args["hf_repo_name"], "music", token=args["hf_token"], trust_remote_code=True
-    )"""
+    )
+    convert_to_parquet(dataset_, args["hf_repo_name"], token=args["hf_token"])"""
     """dataset_ = load_dataset(
         str(path_main_data_directory() / "GigaMIDI"), "music", trust_remote_code=True
     )"""
