@@ -209,21 +209,24 @@ class DatasetMMM(DatasetMIDI):
         try:
             score = Score.from_midi(self._dataset[idx]["music"]["bytes"])
         except SCORE_LOADING_EXCEPTION:
-            item = {self.sample_key_name: None, self.labels_key_name: None}
+            item = {self.sample_key_name: None}
             if self.seq2seq:
+                item[self.labels_key_name] = None
                 item[self.decoder_key_name] = None
             return item
 
         try:
             tseq, decoder_input_ids = self._tokenize_score(score)
         except IndexError:
-            item = {self.sample_key_name: None, self.labels_key_name: None}
+            item = {self.sample_key_name: None}
             if self.seq2seq:
+                item[self.labels_key_name] = None
                 item[self.decoder_key_name] = None
             return item
         if tseq is None:
-            item = {self.sample_key_name: None, self.labels_key_name: None}
+            item = {self.sample_key_name: None}
             if self.seq2seq:
+                item[self.labels_key_name] = None
                 item[self.decoder_key_name] = None
             return item
 
@@ -253,8 +256,7 @@ class DatasetMMM(DatasetMIDI):
         score.key_signatures = []
         for track in score.tracks:
             track.controls = []
-            if hasattr(track, "lyrics"):
-                track.lyrics = []
+            track.lyrics = []
             if not self.tokenizer.config.use_sustain_pedals:
                 track.pedals = []
             if not self.tokenizer.config.use_pitch_bends:
@@ -307,7 +309,6 @@ class DatasetMMM(DatasetMIDI):
         bar_infilling = len(score.tracks) == 1 or random() < self.bar_fill_ratio
         track_infilling_idx = None
         bar_idx_start, bar_idx_end, infill_section_num_bars = None, None, None
-
         if bar_infilling:
             track_infilling_idx = choice(list(range(len(score.tracks))))
             # ac_indexes contains random bar acs only for the section to infill
