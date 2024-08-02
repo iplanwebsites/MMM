@@ -56,6 +56,14 @@ TOKENIZER_PARAMS = {
     "ac_repetition_track_num_consec_bars": 4,
 }
 
+GENERATION_CONFIG_PARAMS = {
+    "max_length": 99999,  # Default is 20
+    "max_new_tokens": 3,  # This is just for testing purposes
+    "use_cache": True,  # To allow reuse of past_key_values to speed up computation
+    "temperature": 1.0,
+    "top_k": 50,  # (default value)
+}
+
 # TOKENIZER TRAINING PARAMS
 VOCAB_SIZE = 50000
 ACS_RANDOM_RATIO_RANGE = (0.05, 0.9)
@@ -78,8 +86,6 @@ SLIDING_WINDOWS = 384
 
 # DATA CONFIGS
 MAX_SEQ_LEN = 1024 * 3
-MIN_SEQ_LEN = 2
-MAX_NUM_FILES_NUM_TOKENS_PER_NOTE = 200
 TRACKS_SELECTION_RANDOM_RATIO_RANGE = (0.4, 1)
 RATIO_BAR_INFILLING = 0.75
 RATIOS_RANGE_BAR_INFILLING_DURATION = (0.1, 0.4)

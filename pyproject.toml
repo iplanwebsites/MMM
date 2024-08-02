@@ -38,7 +38,7 @@ classifiers = [
     "Operating System :: OS Independent",
 ]
 dependencies = [
-    "numpy>=1.19",
+    "numpy==1.26.3",
     "miditok @ git+https://github.com/Natooz/MidiTok",
     "transformers>=4.43.3",
     "torch>=2.4.0",
