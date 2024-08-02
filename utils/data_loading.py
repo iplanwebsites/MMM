@@ -204,42 +204,36 @@ class DatasetMMM(DatasetMIDI):
         :param idx: idx of the file/sample.
         :return: the token ids, with optionally the associated label.
         """
-        labels = None
-
         # The tokenization steps are outside the try bloc as if there are errors,
         # we might want to catch them to fix them instead of skipping the iteration.
         try:
             score = Score.from_midi(self._dataset[idx]["music"]["bytes"])
         except SCORE_LOADING_EXCEPTION:
             item = {self.sample_key_name: None}
-            if self.func_to_get_labels is not None:
-                item[self.labels_key_name] = labels
+            if self.seq2seq:
+                item[self.labels_key_name] = None
+                item[self.decoder_key_name] = None
             return item
 
         try:
             tseq, decoder_input_ids = self._tokenize_score(score)
         except IndexError:
             item = {self.sample_key_name: None}
-            if self.func_to_get_labels is not None:
-                item[self.labels_key_name] = labels
+            if self.seq2seq:
+                item[self.labels_key_name] = None
+                item[self.decoder_key_name] = None
             return item
         if tseq is None:
             item = {self.sample_key_name: None}
-            if self.func_to_get_labels is not None:
-                item[self.labels_key_name] = labels
+            if self.seq2seq:
+                item[self.labels_key_name] = None
+                item[self.decoder_key_name] = None
             return item
 
         # If not one_token_stream, we only take the first track/sequence
         token_ids = tseq.ids if self.tokenizer.one_token_stream else tseq[0].ids
-        if self.func_to_get_labels is not None:
-            # tokseq can be given as a list of TokSequence to get the labels
-            labels = self.func_to_get_labels(score, tseq, self.files_paths[idx])
-            if not isinstance(labels, LongTensor):
-                labels = LongTensor([labels] if isinstance(labels, int) else labels)
 
         item = {self.sample_key_name: LongTensor(token_ids)}
-        if self.func_to_get_labels is not None:
-            item[self.labels_key_name] = labels
 
         if self.seq2seq:
             item[self.decoder_key_name] = LongTensor(decoder_input_ids.ids)
