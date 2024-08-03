@@ -33,7 +33,7 @@ TOKENIZER_PARAMS = {
     "use_rests": False,
     "use_tempos": True,
     "use_time_signatures": True,
-    "use_pitch_intervals": True,
+    "use_pitch_intervals": False,  # cannot be used as extracting tokens in data loading
     "use_programs": True,
     "num_tempos": 48,
     "tempo_range": (50, 200),
