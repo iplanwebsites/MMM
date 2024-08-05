@@ -160,7 +160,8 @@ class MMM(Baseline):
             try:
                 return load_dataset(
                     str(self.dataset_path),
-                    self.data_config.subset_name,
+                    "music",
+                    subsets=self.data_config.subsets_names,
                     trust_remote_code=True,
                 )
             except PermissionError:
@@ -296,7 +297,9 @@ training_config_kwargs = {
     "neftune_noise_alpha": NEFTUNE_NOISE_ALPHA,
     "predict_with_generate": False,
 }
-data_config = DataConfig("music", DATA_AUGMENTATION_OFFSETS, MAX_SEQ_LEN)
+data_config = DataConfig(
+    ["no-drums", "all-instruments-with-drums"], DATA_AUGMENTATION_OFFSETS, MAX_SEQ_LEN
+)
 tok_config = TokenizationConfig(
     "MMM", TokenizerConfig(**deepcopy(TOKENIZER_PARAMS)), VOCAB_SIZE
 )
