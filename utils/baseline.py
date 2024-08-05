@@ -160,7 +160,7 @@ class MMM(Baseline):
             try:
                 return load_dataset(
                     str(self.dataset_path),
-                    "music",
+                    "all-instruments-with-drums",
                     subsets=self.data_config.subsets_names,
                     trust_remote_code=True,
                 )
