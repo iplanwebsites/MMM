@@ -218,6 +218,7 @@ class MMM(Baseline):
         return DataCollator(
             self.pad_token_id,
             pad_on_left=pad_on_left,
+            shift_labels=self.seq2seq,
         )
 
     def create_model(self, pretrained: str | None = None) -> PreTrainedModel:
