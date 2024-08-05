@@ -39,7 +39,7 @@ task_ids: []
 
 <!-- - **Homepage:** https://metacreation.net/GigaMIDI -->
 - **Repository:** https://github.com/Metacreation-Lab/GigaMIDI
-<!-- - **Paper:** https://arxiv.org/abs/1912.06670  -->
+<!-- - **Paper:**  -->
 - **Point of Contact:** [Keon Ju Maverick Lee](mailto:keon_maverick@sfu.ca)
 
 
@@ -49,7 +49,7 @@ task_ids: []
 
 The GigaMIDI dataset is a corpus of over 1 million MIDI files covering all music genres.
 
-We provide two subsets: `drums`, which contain MIDI files exclusively containing drum tracks, and `music` for all others. The `all` subset encompasses both of them.
+We provide three subsets: `drums-only`, which contain MIDI files exclusively containing drum tracks, `no-drums` for MIDI files containing any MIDI program except drums (channel 10) and `all-instruments-with-drums` for MIDI files containing multiple MIDI programs including drums. The `all` subset encompasses the three to get the full dataset.
 
 ## How to use
 
@@ -58,7 +58,15 @@ The `datasets` library allows you to load and pre-process your dataset in pure P
 ```python
 from datasets import load_dataset
 
-dataset = load_dataset("Metacreation/GigaMIDI", "music", trust_remote_code=True)
+dataset = load_dataset("Metacreation/GigaMIDI", "all-instruments-with-drums", trust_remote_code=True)
+```
+
+You can load combinations of specific subsets by using the `subset` keyword argument when loading the dataset:
+
+```Python
+from datasets import load_dataset
+
+dataset = load_dataset("Metacreation/GigaMIDI", "music", subsets=["no-drums", "all-instruments-with-drums"], trust_remote_code=True)
 ```
 
 Using the datasets library, you can also stream the dataset on-the-fly by adding a `streaming=True` argument to the `load_dataset` function call. Loading a dataset in streaming mode loads individual samples of the dataset at a time, rather than downloading the entire dataset to disk.
@@ -67,7 +75,7 @@ Using the datasets library, you can also stream the dataset on-the-fly by adding
 from datasets import load_dataset
 
 dataset = load_dataset(
-    "Metacreation/GigaMIDI", "music", trust_remote_code=True, streaming=True
+    "Metacreation/GigaMIDI", "all-instruments-with-drums", trust_remote_code=True, streaming=True
 )
 
 print(next(iter(dataset)))
@@ -81,7 +89,7 @@ print(next(iter(dataset)))
 from datasets import load_dataset
 from torch.utils.data.sampler import BatchSampler, RandomSampler
 
-dataset = load_dataset("Metacreation/GigaMIDI", "music", trust_remote_code=True, split="train")
+dataset = load_dataset("Metacreation/GigaMIDI", "all-instruments-with-drums", trust_remote_code=True, split="train")
 batch_sampler = BatchSampler(RandomSampler(dataset), batch_size=32, drop_last=False)
 dataloader = DataLoader(dataset, batch_sampler=batch_sampler)
 ```
@@ -92,7 +100,7 @@ dataloader = DataLoader(dataset, batch_sampler=batch_sampler)
 from datasets import load_dataset
 from torch.utils.data import DataLoader
 
-dataset = load_dataset("Metacreation/GigaMIDI", "music", trust_remote_code=True, split="train")
+dataset = load_dataset("Metacreation/GigaMIDI", "all-instruments-with-drums", trust_remote_code=True, split="train")
 dataloader = DataLoader(dataset, batch_size=32)
 ```
 
@@ -103,7 +111,7 @@ MIDI files can be easily loaded and tokenized with [Symusic](https://github.com/
 ```python
 from datasets import load_dataset
 
-dataset = load_dataset("Metacreation/GigaMIDI", "music", trust_remote_code=True, split="train")
+dataset = load_dataset("Metacreation/GigaMIDI", "all-instruments-with-drums", trust_remote_code=True, split="train")
 ```
 
 The dataset can be [processed](https://huggingface.co/docs/datasets/process) by using the `dataset.map` and  `dataset.filter` methods.
@@ -141,7 +149,7 @@ def is_score_valid(
         len(get_bars_ticks(score)) >= min_num_bars and score.note_num() > min_num_notes
     )
 
-dataset = load_dataset("Metacreation/GigaMIDI", "music", trust_remote_code=True, split="train")
+dataset = load_dataset("Metacreation/GigaMIDI", "all-instruments-with-drums", trust_remote_code=True, split="train")
 dataset = dataset.filter(
     lambda ex: is_score_valid(ex["music"]["bytes"], min_num_bars=8, min_num_notes=50)
 )

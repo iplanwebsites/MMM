@@ -12,6 +12,8 @@ import miditok
 from utils.utils import path_data_directory_local_fs
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
     from torch.utils.data import Dataset
     from transformers import (
         DataCollator,
@@ -26,14 +28,14 @@ class DataConfig:
     """
     Configuration of the data.
 
-    :param subset_name: name of the subset of the dataset to use.
+    :param subsets_names: name of the subsets of the dataset to use.
     :param data_augmentation_offsets: offsets of pitch, velocity and note duration to
         use to augment the original dataset.
     :param max_seq_len: maximum length that a token sequence should have to be used to
         train the model.
     """
 
-    subset_name: str
+    subsets_names: Sequence[str]
     data_augmentation_offsets: tuple[int, int, int]
     max_seq_len: int
 

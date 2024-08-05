@@ -12,7 +12,7 @@ from huggingface_hub import create_branch, upload_file
 from tqdm import tqdm
 from webdataset import ShardWriter
 
-from utils.GigaMIDI.GigaMIDI import _SPLITS, _SUBSETS
+from utils.GigaMIDI.GigaMIDI import _SPLITS
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -21,6 +21,11 @@ if TYPE_CHECKING:
 
 
 MAX_NUM_ENTRIES_PER_SHARD = 50000
+SUBSET_PATHS = {
+    "all-instruments-with-drums": "drums+music",
+    "drums-only": "drums",
+    "no-drums": "music",
+}
 
 
 def create_webdataset_gigamidi(main_data_dir_path: Path) -> None:
@@ -105,10 +110,10 @@ def create_webdataset_gigamidi(main_data_dir_path: Path) -> None:
 
     # Sharding the data into tar archives
     num_shards = {}
-    for subset in _SUBSETS:
+    for subset, subset_path in SUBSET_PATHS.items():
         num_shards[subset] = {}
         for split in _SPLITS:
-            files_paths = list((dataset_path / split / subset).glob("**/*.mid"))
+            files_paths = list((dataset_path / split / subset_path).glob("**/*.mid"))
             save_path = webdataset_path / subset / split
             save_path.mkdir(parents=True, exist_ok=True)
             metadata = {}
@@ -236,11 +241,16 @@ if __name__ == "__main__":
         args["hf_repo_name"], "music", token=args["hf_token"], trust_remote_code=True
     )
     convert_to_parquet(dataset_, args["hf_repo_name"], token=args["hf_token"])"""
-    """dataset_ = load_dataset(
-        str(path_main_data_directory() / "GigaMIDI"), "music", trust_remote_code=True
-    )"""
-    """data = dataset_["train"]
-    for i in range(700):
+    """from datasets import load_dataset
+
+    dataset_ = load_dataset(
+        str(path_data_directory_local_fs() / "GigaMIDI"),
+        "no-drums",
+        subsets=["no-drums", "all-instruments-with-drums"],
+        trust_remote_code=True,
+    )
+    data = dataset_["train"]
+    for i in range(7):
         t = data[i]
         f = 0
 

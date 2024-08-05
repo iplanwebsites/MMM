@@ -18,7 +18,7 @@ _CITATION = ""
 _DESCRIPTION = "A large-scale MIDI symbolic music dataset."
 _HOMEPAGE = "https://github.com/Metacreation-Lab/GigaMIDI"
 _LICENSE = "CC0, also see https://www.europarl.europa.eu/legal-notice/en/"
-_SUBSETS = ["music", "drums"]
+_SUBSETS = ["all-instruments-with-drums", "drums-only", "no-drums"]
 _SPLITS = ["train", "validation", "test"]
 _BASE_DATA_DIR = ""
 _N_SHARDS_FILE = _BASE_DATA_DIR + "n_shards.json"
@@ -92,7 +92,19 @@ _VERSION = "1.0.0"
 class GigaMIDIConfig(datasets.BuilderConfig):
     """BuilderConfig for GigaMIDI."""
 
-    def __init__(self, name: Literal["music", "drums", "all"], **kwargs) -> None:
+    def __init__(
+        self,
+        name: str,
+        subsets: Sequence[
+            Literal[
+                "all-instruments-with-drums",
+                "all-instruments-no-drums",
+                "drums-only",
+            ]
+        ]
+        | None = None,
+        **kwargs,
+    ) -> None:
         """
         BuilderConfig for GigaMIDI.
 
@@ -101,11 +113,16 @@ class GigaMIDIConfig(datasets.BuilderConfig):
             name: `string` or `List[string]`:
                 name of the dataset subset. Must be either "drums" for files containing
                 only drum tracks, "music" for others or "all" for all.
+            subsets: `Sequence[string]`: list of subsets to use. It is None by default
+                and resort to the `name` argument to select one subset if not provided.
             **kwargs: keyword arguments forwarded to super.
 
         """
         if name == "all":
             self.subsets = _SUBSETS
+        elif subsets is not None:
+            self.subsets = subsets
+            name = "_".join(subsets)
         else:
             self.subsets = [name]
 
