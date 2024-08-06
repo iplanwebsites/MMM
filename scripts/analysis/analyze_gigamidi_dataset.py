@@ -67,6 +67,8 @@ if __name__ == "__main__":
     ax.grid(axis="y", linestyle="--", linewidth=0.6)
     ax.legend(prop={"size": 10})
     ax.set_ylabel("Density")
-    ax.set_xlabel("Length in bars")
-    fig.savefig(FIGURES_PATH / "GigaMIDI_length_bars.pdf", bbox_inches="tight", dpi=300)
+    ax.set_xlabel("Duration in bars")
+    fig.savefig(
+        FIGURES_PATH / "GigaMIDI_duration_bars.pdf", bbox_inches="tight", dpi=300
+    )
     plt.close(fig)
