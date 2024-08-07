@@ -17,14 +17,14 @@ from utils.constants import GENERATION_CONFIG_PARAMS
 if TYPE_CHECKING:
     from pathlib import Path
 
-    from utils.classes import InferenceConfig
+    from .config import InferenceConfig
 
 
 def generate(
     model: PreTrainedModel,
     tokenizer: MMM,
     inference_config: InferenceConfig,
-    input_midi_path: str | Path,
+    score_or_path: Score | Path | str,
 ) -> Score:
     """
     Use the model to generate new music content.
@@ -34,9 +34,13 @@ def generate(
     :param model: model used for generation
     :param tokenizer: MMM tokenizer
     :param inference_config: InferenceConfig
-    :param input_midi_path: path of the midi file to infill
+    :param score_or_path: ``symusic.Score`` or path of the music file to infill.
     """
-    score = symusic.Score(input_midi_path)
+    score = (
+        symusic.Score(score_or_path)
+        if not isinstance(score_or_path, Score)
+        else score_or_path
+    )
 
     # Infill bars and generate new tracks
     if inference_config.infilling:

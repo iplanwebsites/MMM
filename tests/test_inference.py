@@ -8,8 +8,7 @@ import pytest
 from miditok import MMM
 from transformers import MistralConfig, MistralForCausalLM
 
-from mmm.inference import generate
-from utils.classes import InferenceConfig
+from mmm import InferenceConfig, generate
 from utils.constants import (
     SLIDING_WINDOWS,
 )
