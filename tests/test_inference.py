@@ -9,8 +9,7 @@ from miditok import MMM, TokenizerConfig
 from transformers import MistralConfig, MistralForCausalLM
 from utils_tests import MIDI_PATH
 
-from mmm.inference import generate
-from utils.classes import InferenceConfig
+from mmm import InferenceConfig, generate
 from utils.constants import (
     SLIDING_WINDOWS,
     TOKENIZER_PARAMS,
