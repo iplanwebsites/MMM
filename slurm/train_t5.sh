@@ -8,19 +8,18 @@
 #SBATCH --error=logs/train-t5_err.out
 #SBATCH --account=def-pasquier
 #SBATCH --mail-user=raa60@sfu.ca # Default mail
-#SBATCH --nodes=2            # total nb of nodes
+#SBATCH --nodes=1            # total nb of nodes
 #SBATCH --ntasks-per-node=1  # nb of tasks per node
 #SBATCH --gpus-per-node=a100:4
-#SBATCH --cpus-per-task=48   # nb of CPU cores per task
-#SBATCH --mem=200G
+#SBATCH --cpus-per-task=10   # nb of CPU cores per task
+#SBATCH --mem=100G
 #SBATCH --time=24:00:00
 
 # Define args
 MODEL_TRAIN_ARGS=" \
     --deepspeed \
-    --per-device-train-batch-size 4 \
-    --per-device-eval-batch-size 10 \
-    --gradient-accumulation-steps 2 \
+    --per-device-train-batch-size 12 \
+    --per-device-eval-batch-size 18 \
     --model MMM_T5 \
     "
 
