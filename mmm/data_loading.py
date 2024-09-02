@@ -247,7 +247,8 @@ class DatasetMMM(DatasetMIDI):
         score.key_signatures = []
         for track in score.tracks:
             track.controls = []
-            track.lyrics = []
+            if hasattr(track, "lyrics"):
+                track.lyrics = []
             if not self.tokenizer.config.use_sustain_pedals:
                 track.pedals = []
             if not self.tokenizer.config.use_pitch_bends:
@@ -300,6 +301,7 @@ class DatasetMMM(DatasetMIDI):
         bar_infilling = len(score.tracks) == 1 or random() < self.bar_fill_ratio
         track_infilling_idx = None
         bar_idx_start, bar_idx_end, infill_section_num_bars = None, None, None
+
         if bar_infilling:
             track_infilling_idx = choice(list(range(len(score.tracks))))
             # ac_indexes contains random bar acs only for the section to infill
