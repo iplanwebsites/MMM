@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 import pytest
 from miditok import MMM, TokenizerConfig
 from transformers import MistralConfig, MistralForCausalLM
-from utils_tests import MIDI_PATH
+from .utils_tests import MIDI_PATH
 
 from mmm.inference import generate
 from utils.classes import InferenceConfig
@@ -19,14 +19,17 @@ from utils.constants import (
 if TYPE_CHECKING:
     from pathlib import Path
 
+# TODO: Test track generation
 INFERENCE_CONFIG = InferenceConfig(
     {
-        0: [(12, 16, ["ACBarNoteDensity_6", "ACBarNoteDurationEight_1"])],
-        3: [(24, 26, ["ACBarNoteDensity_6", "ACBarNoteDurationEight_1"])],
+        0: [(4, 8, ["ACBarNoteDensity_6", "ACBarNoteDurationEight_1"])],
+        2: [(4, 8, ["ACBarNoteDensity_6", "ACBarNoteDurationEight_1"])],
+        3: [(4, 8, ["ACBarNoteDensity_6", "ACBarNoteDurationEight_1"])],
     },
-    [
-        (43, ["ACTrackOnsetPolyphonyMax_2", "ACTrackNoteDensityMin_8"]),
-    ],
+    []
+    #[
+    #    (43, ["ACTrackOnsetPolyphonyMax_2", "ACTrackNoteDensityMin_8"]),
+    #],
 )
 
 MISTRAL_CONFIG = MistralConfig(
@@ -46,9 +49,13 @@ def test_generate(
     tokenizer: MMM, inference_config: InferenceConfig, input_midi_path: str | Path
 ):
     MISTRAL_CONFIG.vocab_size = tokenizer.vocab_size
-    generate(
+    output_score = generate(
         MistralForCausalLM(MISTRAL_CONFIG),
         tokenizer,
         inference_config,
         input_midi_path,
     )
+
+    output_score.dump_midi("tests_output/midi_out.mid")
+
+

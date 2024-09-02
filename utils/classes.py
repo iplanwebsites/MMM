@@ -71,6 +71,7 @@ class InferenceConfig:
 
     bars_to_generate: dict[int, list[tuple[int, int, list[str]]]]
     new_tracks: list[tuple[int, list[str]]]
+    autoregressive: bool = False
 
     def __post_init__(self) -> None:
         """Check that the Inference config is consistent."""
