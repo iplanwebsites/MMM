@@ -1,3 +1,5 @@
 """Utils for tests."""
+from pathlib import Path
 
-MIDI_PATH = "midis/I Gotta Feeling.mid"
+HERE = Path(__file__).parent
+MIDI_PATH = HERE/"midis"/"I Gotta Feeling.mid"

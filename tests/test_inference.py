@@ -16,8 +16,7 @@ from utils.constants import (
     TOKENIZER_PARAMS,
 )
 
-if TYPE_CHECKING:
-    from pathlib import Path
+from pathlib import Path
 
 # TODO: Test track generation
 INFERENCE_CONFIG = InferenceConfig(
@@ -26,10 +25,9 @@ INFERENCE_CONFIG = InferenceConfig(
         2: [(4, 8, ["ACBarNoteDensity_6", "ACBarNoteDurationEight_1"])],
         3: [(4, 8, ["ACBarNoteDensity_6", "ACBarNoteDurationEight_1"])],
     },
-    []
-    #[
-    #    (43, ["ACTrackOnsetPolyphonyMax_2", "ACTrackNoteDensityMin_8"]),
-    #],
+    [
+        (43, ["ACTrackOnsetPolyphonyMax_2", "ACTrackNoteDensityMin_8"]),
+    ],
 )
 
 MISTRAL_CONFIG = MistralConfig(
@@ -56,6 +54,6 @@ def test_generate(
         input_midi_path,
     )
 
-    output_score.dump_midi("tests_output/midi_out.mid")
+    output_score.dump_midi(Path(__file__).parent/"tests_output"/"midi_out_final.mid")
 
 

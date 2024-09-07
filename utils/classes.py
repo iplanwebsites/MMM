@@ -71,6 +71,7 @@ class InferenceConfig:
 
     bars_to_generate: dict[int, list[tuple[int, int, list[str]]]]
     new_tracks: list[tuple[int, list[str]]]
+    infilling: bool = False
     autoregressive: bool = False
 
     def __post_init__(self) -> None:
