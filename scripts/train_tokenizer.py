@@ -128,21 +128,20 @@ class TokTrainingIterator:
 
 if __name__ == "__main__":
     from transformers.trainer_utils import set_seed
-
-    from utils.baseline import mmm
+    from utils.baselines import mmm_mistral
     from utils.constants import TRAINING_TOKENIZER_MAX_NUM_FILES
 
-    set_seed(mmm.seed)
+    set_seed(mmm_mistral.seed)
 
     # Train the tokenizer
-    dataset_ = mmm.create_dataset()["train"]
+    dataset_ = mmm_mistral.create_dataset()["train"]
     dataset_.shuffle()
-    dataset_ = mmm.preprocess_dataset(dataset_).select(
+    dataset_ = mmm_mistral.preprocess_dataset(dataset_).select(
         list(range(TRAINING_TOKENIZER_MAX_NUM_FILES))
     )
-    iterator = TokTrainingIterator(mmm.tokenizer, dataset_)
-    mmm.tokenizer.train(
-        vocab_size=mmm.tokenization_config.vocab_size,
+    iterator = TokTrainingIterator(mmm_mistral.tokenizer, dataset_)
+    mmm_mistral.tokenizer.train(
+        vocab_size=mmm_mistral.tokenization_config.vocab_size,
         iterator=iterator,
     )
-    mmm.tokenizer.save(mmm.tokenizer_path)
+    mmm_mistral.tokenizer.save(mmm_mistral.tokenizer_path)

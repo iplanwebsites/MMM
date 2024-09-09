@@ -24,10 +24,10 @@ TOKENIZER_PARAMS = {
         "PAD",
         "BOS",
         "EOS",
-        "Infill_Bar",  # Indicate a bar to be filled in a seq
-        "Infill_Track",  # Using in seq2seq to instruct the decoder to gen a new track
-        "FillBar_Start",  # Start of the infilled Bar
-        "FillBar_End",
+        "Infill_Bar",  # Indicates a bar to be filled in a seq
+        "Infill_Track",  # Used in seq2seq to instruct the decoder to gen a new track
+        "FillBar_Start",  # Start of the portion to infill (containing n bars)
+        "FillBar_End",  # Ends the portion to infill
     ],
     "use_chords": False,
     "use_rests": False,
@@ -65,15 +65,15 @@ GENERATION_CONFIG_PARAMS = {
 }
 
 # TOKENIZER TRAINING PARAMS
-VOCAB_SIZE = 50000
+VOCAB_SIZE = 16000
 ACS_RANDOM_RATIO_RANGE = (0.05, 0.9)
 TRACKS_IDX_RANDOM_RATIO_RANGE = (0.1, 1)
 BARS_IDX_RANDOM_RATIO_RANGE = (0.1, 0.7)
-TRAINING_TOKENIZER_MAX_NUM_FILES = 40000
+TRAINING_TOKENIZER_MAX_NUM_FILES = 50000
 
-# MODEL SIZE (55.366.800 params for Mistral, 43.053.312 for T5)
+# MODEL SIZE (41558528 params for Mistral, 45957632 for T5, 33408000 for GPT2)
 MAX_POSITION_EMBEDDINGS = 8192
-EMBEDDING_SIZE = 400
+EMBEDDING_SIZE = 512
 FEEDFORWARD_SIZE = EMBEDDING_SIZE * 3
 NUM_LAYERS = 8
 NUM_LAYERS_SEQ2SEQ_ENCODER = 6
@@ -81,17 +81,6 @@ NUM_LAYERS_SEQ2SEQ_DECODER = 6
 NUM_ATTENTION_HEADS = 8
 NUM_KEY_VALUE_HEADS = NUM_ATTENTION_HEADS // 2
 SLIDING_WINDOWS = 384
-# SIZE FOR LARGER VERSION (98.398.720 params)
-"""MAX_POSITION_EMBEDDINGS = 8192
-EMBEDDING_SIZE = 512
-FEEDFORWARD_SIZE = EMBEDDING_SIZE * 4
-NUM_LAYERS = 12
-NUM_LAYERS_SEQ2SEQ_ENCODER = 8
-NUM_LAYERS_SEQ2SEQ_DECODER = 8
-NUM_ATTENTION_HEADS = 8
-NUM_KEY_VALUE_HEADS = NUM_ATTENTION_HEADS // 2
-SLIDING_WINDOWS = 384"""
-
 
 # DATA CONFIGS
 MAX_SEQ_LEN = 1024 * 2
@@ -124,7 +113,7 @@ DEEPSPEED = None  # set with argparse
 TORCH_COMPILE = True
 TORCH_COMPILE_BACKEND = None  # default to "inductor"
 TORCH_COMPILE_MODE = None
-GRADIENT_CHECKPOINTING = True
+GRADIENT_CHECKPOINTING = False
 # https://pytorch.org/docs/stable/distributed.html
 # DDP_BACKEND = None
 DDP_FIND_UNUSED_PARAMETERS = False

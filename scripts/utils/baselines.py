@@ -19,12 +19,15 @@ from transformers import (
     AutoModelForCausalLM,
     AutoModelForSeq2SeqLM,
     GenerationConfig,
+    GPT2Config,
     LongT5Config,
     MistralConfig,
 )
 
-from utils.classes import Baseline, DataConfig, TokenizationConfig
-from utils.constants import (
+from mmm.data_loading import DatasetMMM
+
+from .classes import Baseline, DataConfig, TokenizationConfig
+from .constants import (
     ACS_RANDOM_RATIO_RANGE,
     BARS_IDX_RANDOM_RATIO_RANGE,
     BATCH_SIZE_PER_DEVICE_TRAIN,
@@ -99,7 +102,6 @@ from utils.constants import (
     WARMUP_RATIO,
     WEIGHT_DECAY,
 )
-from utils.data_loading import DatasetMMM
 
 if TYPE_CHECKING:
     from datasets import Dataset
@@ -313,7 +315,16 @@ mistral_config = MistralConfig(
     num_key_value_heads=NUM_KEY_VALUE_HEADS,
     max_position_embeddings=MAX_POSITION_EMBEDDINGS,
     sliding_window=SLIDING_WINDOWS,
-    use_cache=False,  # for gradient checkpointing during training
+    attn_implementation=attn_implem,
+    torch_dtype=dtype,
+)
+gpt2_config = GPT2Config(
+    vocab_size=VOCAB_SIZE,
+    n_positions=MAX_POSITION_EMBEDDINGS,
+    n_embd=EMBEDDING_SIZE,
+    n_layer=NUM_LAYERS,
+    n_head=NUM_ATTENTION_HEADS,
+    n_inner=FEEDFORWARD_SIZE,
     attn_implementation=attn_implem,
     torch_dtype=dtype,
 )
@@ -326,7 +337,6 @@ t5_config = LongT5Config(
     num_decoder_layers=NUM_LAYERS_SEQ2SEQ_DECODER,
     num_heads=NUM_ATTENTION_HEADS,
     local_radius=SLIDING_WINDOWS,
-    use_cache=False,  # for gradient checkpointing during training
     decoder_start_token_id=0,  # padding token
     # attn_implementation=attn_implem,  # not implemented for T5Long
     torch_dtype=dtype,
@@ -345,8 +355,8 @@ generation_config = GenerationConfig(
 )
 
 # exp -> Model size, baseline -> pretrained + finetune
-mmm = MMM(
-    "MMM_Mistral",
+mmm_mistral = MMM(
+    "MMM_mistral",
     "GigaMIDI",
     SEED,
     deepcopy(tok_config),
@@ -356,8 +366,19 @@ mmm = MMM(
     deepcopy(generation_config),
 )
 
-mmm_seq2seq = MMM(
-    "MMM_T5",
+mmm_gpt2 = MMM(
+    "MMM_gpt2",
+    "GigaMIDI",
+    SEED,
+    deepcopy(tok_config),
+    deepcopy(gpt2_config),
+    deepcopy(training_config_kwargs),
+    deepcopy(data_config),
+    deepcopy(generation_config),
+)
+
+mmm_t5 = MMM(
+    "MMM_t5",
     "GigaMIDI",
     SEED,
     deepcopy(tok_config),
@@ -366,4 +387,6 @@ mmm_seq2seq = MMM(
     deepcopy(data_config),
     deepcopy(generation_config),
 )
-mmm_seq2seq.seq2seq = True
+mmm_t5.seq2seq = True
+
+baselines = {baseline.name: baseline for baseline in [mmm_mistral, mmm_t5, mmm_gpt2]}

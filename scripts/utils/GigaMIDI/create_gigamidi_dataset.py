@@ -12,7 +12,7 @@ from huggingface_hub import create_branch, upload_file
 from tqdm import tqdm
 from webdataset import ShardWriter
 
-from utils.GigaMIDI.GigaMIDI import _SPLITS
+from scripts.utils.GigaMIDI.GigaMIDI import _SPLITS
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -226,7 +226,7 @@ def convert_to_parquet(
 if __name__ == "__main__":
     from argparse import ArgumentParser
 
-    from utils.utils import path_data_directory_local_fs
+    from scripts.utils.utils import path_data_directory_local_fs
 
     parser = ArgumentParser(description="Dataset creation script")
     parser.add_argument(

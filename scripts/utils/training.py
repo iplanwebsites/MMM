@@ -17,7 +17,7 @@ if TYPE_CHECKING:
 
     from torch.utils.data import Dataset
 
-    from utils.classes import Baseline
+    from .classes import Baseline
 
 
 def select_device(use_cuda: bool = True, use_mps: bool = True) -> device:
@@ -125,15 +125,18 @@ def whole_training_process(
 
     # Create model
     model = baseline.create_model()
+    # n = sum(p.numel() for p in model.parameters() if p.requires_grad)
 
     # Load data
     set_seed(baseline.seed)  # set before loading checkpoint
     subsets = baseline.create_data_subsets()
-    """from tqdm import tqdm
-
-    for x in tqdm(subsets["train"], desc="iterating over dataset"):
-        t = 0"""
     collator = baseline.create_data_collator()
+    """from tqdm import tqdm
+    from torch.utils.data import DataLoader
+
+    dataloader = DataLoader(subsets["train"], batch_size=30, collate_fn=collator)
+    for x in tqdm(dataloader, desc="iterating over dataloader"):
+        t = 0"""
 
     # Train model if not already done
     # We use the Seq2SeqTrainer anyway as it subclasses Trainer and handles

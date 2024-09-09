@@ -1,4 +1,4 @@
-"""Lists the Experiment baselines and training."""
+"""Dataset class to train models for MMM."""
 
 from __future__ import annotations
 
@@ -132,19 +132,12 @@ class DatasetMMM(DatasetMIDI):
         self.seq2seq = seq2seq
 
         # Infill tokens, set as attribute here to avoid to access to vocab dic
-        self._infill_bar_token = "Infill_Bar"
-        self._infill_bar_start_token = "FillBar_Start"
-        self._infill_bar_end_token = "FillBar_End"
-        self._infill_track_token = "Infill_Track"
         self._infill_bar_token_id = tokenizer.vocab["Infill_Bar"]
         self._infill_bar_start_token_id = tokenizer.vocab["FillBar_Start"]
         self._infill_bar_end_token_id = tokenizer.vocab["FillBar_End"]
         self._infill_track_token_id = tokenizer.vocab["Infill_Track"]
-
-        self._track_start_token = "Track_Start"
-        self._track_end_token = "Track_End"
-        self._track_start_token_id = tokenizer.vocab[self._track_start_token]
-        self._track_end_token_id = tokenizer.vocab[self._track_end_token]
+        self._track_start_token_id = tokenizer.vocab["Track_Start"]
+        self._track_end_token_id = tokenizer.vocab["Track_End"]
         self._bar_token_id = tokenizer.vocab["Bar_None"]
         self._bar_token_byte = tokenizer._vocab_base_id_to_byte[self._bar_token_id]
 
@@ -214,6 +207,7 @@ class DatasetMMM(DatasetMIDI):
                 item[self.decoder_key_name] = None
             return item
 
+        # Tokenize the score
         try:
             tseq, decoder_input_ids = self._tokenize_score(score)
         except IndexError:
