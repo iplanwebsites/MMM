@@ -35,6 +35,8 @@ from .constants import (
     BF16,
     BF16_EVAL,
     DATA_AUGMENTATION_OFFSETS,
+    DATALOADER_NUM_WORKERS,
+    DATALOADER_PERSISTENT_WORKERS,
     DDP_BUCKET_CAP_MB,
     DDP_FIND_UNUSED_PARAMETERS,
     DEEPSPEED,
@@ -280,6 +282,7 @@ training_config_kwargs = {
     "fp16_full_eval": FP16_EVAL,
     "half_precision_backend": HALF_PRECISION_BACKEND,
     "local_rank": int(os.getenv("LOCAL_RANK", -1)),  # for DDP
+    "dataloader_num_workers": DATALOADER_NUM_WORKERS,
     "disable_tqdm": DISABLE_TQDM,
     "load_best_model_at_end": LOAD_BEST_MODEL_AT_END,
     "label_smoothing_factor": LABEL_SMOOTHING,
@@ -287,6 +290,7 @@ training_config_kwargs = {
     "report_to": REPORT_TO,
     "ddp_find_unused_parameters": DDP_FIND_UNUSED_PARAMETERS,
     "ddp_bucket_cap_mb": DDP_BUCKET_CAP_MB,
+    "dataloader_persistent_workers": DATALOADER_PERSISTENT_WORKERS,
     "push_to_hub": PUSH_TO_HF_HUB,
     "deepspeed": DEEPSPEED,  # set with argparse
     "hub_strategy": HUB_STRATEGY,
