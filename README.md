@@ -31,22 +31,6 @@ Before running these commands, make sure to load a virtual Python environment if
 pip install ".[train]"
 ```
 
-#### FlashAttention
-
-To install [FlashAttention](https://github.com/Dao-AILab/flash-attention?tab=readme-ov-file#installation-and-features):
-
-```bash
-pip install ninja
-pip install flash-attn --no-build-isolation
-```
-
-Installing on Compute Canada (needs CUDA):
-
-```bash
-git clone --recurse-submodules https://github.com/Dao-AILab/flash-attention
-sbatch slurm/install_flashattention.sh
-```
-
 ### Preparing the data
 
 MMM is trained on the [GigaMIDI](https://huggingface.co/datasets/Metacreation/GigaMIDI) dataset. On GPU clusters, the compute nodes usually can't access the internet. The dataset hence must be already downloaded before running the training itself on the nodes.

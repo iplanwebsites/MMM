@@ -14,8 +14,8 @@ if __name__ == "__main__":
     from tqdm import tqdm
     from transformers import set_seed
 
-    from utils.GigaMIDI.GigaMIDI import _SUBSETS
-    from utils.utils import path_data_directory_local_fs
+    from scripts.utils.GigaMIDI import _SUBSETS
+    from scripts.utils.utils import path_data_directory_local_fs
 
     SEED = 777
     NUM_FILES = 5000

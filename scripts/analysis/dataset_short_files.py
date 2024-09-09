@@ -278,22 +278,22 @@ if __name__ == "__main__":
     from symusic import Score
     from tqdm import tqdm
 
-    from utils.baseline import mmm
-    from utils.constants import (
+    from scripts.utils.baselines import mmm_mistral
+    from scripts.utils.constants import (
         MIN_NUM_BARS_FILE_VALID,
     )
 
     NUM_HIST_BINS = 50
 
     # Filter non-valid files
-    dataset_files_paths = mmm.dataset_files_paths
+    dataset_files_paths = mmm_mistral.dataset_files_paths
     num_tracks, programs = [], []
     for file_path in tqdm(dataset_files_paths, desc="Reading MIDI files"):
         try:
             score = Score(file_path)
         except SCORE_LOADING_EXCEPTION:
             continue
-        score = mmm.tokenizer.preprocess_score(score)
+        score = mmm_mistral.tokenizer.preprocess_score(score)
         if len(get_bars_ticks(score)) < MIN_NUM_BARS_FILE_VALID:
             continue
 

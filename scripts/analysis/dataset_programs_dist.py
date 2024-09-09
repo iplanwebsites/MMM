@@ -144,15 +144,15 @@ if __name__ == "__main__":
     from tqdm import tqdm
     from transformers.trainer_utils import set_seed
 
-    from utils.baseline import is_score_valid, mmm
+    from scripts.utils.baselines import is_score_valid, mmm_mistral
 
-    set_seed(mmm.seed)
+    set_seed(mmm_mistral.seed)
 
     NUM_FILES = 100000
-    mmm.tokenizer.config.programs = list(range(-1, 128))
+    mmm_mistral.tokenizer.config.programs = list(range(-1, 128))
 
     # Iterate over files
-    dataset_files_paths = mmm.dataset_files_paths
+    dataset_files_paths = mmm_mistral.dataset_files_paths
     shuffle(dataset_files_paths)
     dataset_files_paths = dataset_files_paths[:NUM_FILES]
     all_programs = []
@@ -162,7 +162,7 @@ if __name__ == "__main__":
         except SCORE_LOADING_EXCEPTION:
             continue
         if is_score_valid(score):
-            score = mmm.tokenizer.preprocess_score(score)
+            score = mmm_mistral.tokenizer.preprocess_score(score)
             all_programs += [
                 track.program if not track.is_drum else -1 for track in score.tracks
             ]

@@ -10,8 +10,7 @@ from transformers import MistralConfig, MistralForCausalLM
 from utils_tests import MIDI_PATH
 
 from mmm import InferenceConfig, generate
-from utils.constants import (
-    SLIDING_WINDOWS,
+from scripts.utils.constants import (
     TOKENIZER_PARAMS,
 )
 
@@ -34,7 +33,7 @@ MISTRAL_CONFIG = MistralConfig(
     num_hidden_layers=2,
     num_attention_heads=2,
     num_key_value_heads=1,
-    sliding_window=SLIDING_WINDOWS,
+    sliding_window=384,
 )
 
 

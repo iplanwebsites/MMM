@@ -23,7 +23,7 @@ if __name__ == "__main__":
     from huggingface_hub import repo_exists, upload_folder
     from transformers.trainer_utils import get_last_checkpoint
 
-    from utils.baseline import mmm, mmm_seq2seq
+    from scripts.utils.baselines import baselines
 
     # Parse arguments for training params / model size
     parser = ArgumentParser(description="Model training script")
@@ -32,35 +32,34 @@ if __name__ == "__main__":
     parser.add_argument("--hf-token", type=str, required=True, default=None)
     args = vars(parser.parse_args())
 
-    for baseline in [mmm, mmm_seq2seq]:
-        if baseline.name == args["model"]:
-            # Set checkpoints, lvl for lowest valid loss for pretraining
-            checkpoint = get_last_checkpoint(baseline.run_path)
+    baseline = baselines[args["model"]]
 
-            if repo_exists(args["hf_repo_name"], token=args["hf_token"]):
-                continue
+    # Set checkpoints, lvl for lowest valid loss for pretraining
+    checkpoint = get_last_checkpoint(baseline.run_path)
 
-            # Load model
-            model_ = baseline.create_model(checkpoint)
+    if not repo_exists(args["hf_repo_name"], token=args["hf_token"]):
+        # Load model
+        model_ = baseline.create_model(checkpoint)
 
-            # Push to hub (model + tokenizer + training files)
-            # We do not use the trainer as it does not push the weights as safe
-            # tensors (yet)
-            # https://github.com/huggingface/transformers/issues/25992
-            model_.push_to_hub(
-                repo_id=args["hf_repo_name"],
-                private=True,
-                token=args["hf_token"],
-                commit_message=f"Uploading {baseline.name}",
-                safe_serialization=True,
-            )
-            baseline.tokenizer.push_to_hub(
-                repo_id=args["hf_repo_name"], token=args["hf_token"]
-            )
-            shutil.copy2(MODEL_CARD_PATH, baseline.run_path / "README.md")
-            upload_folder(
-                repo_id=args["hf_repo_name"],
-                token=args["hf_token"],
-                folder_path=baseline.run_path,
-                ignore_patterns=IGNORE_PATTERNS,
-            )
+        # Push to hub (model + tokenizer + training files)
+        # We do not use the trainer as it does not push the weights as safe
+        # tensors (yet)
+        # https://github.com/huggingface/transformers/issues/25992
+        model_.push_to_hub(
+            repo_id=args["hf_repo_name"],
+            private=True,
+            token=args["hf_token"],
+            commit_message=f"Uploading {baseline.name}",
+            safe_serialization=True,
+        )
+        baseline.tokenizer.push_to_hub(
+            repo_id=args["hf_repo_name"], token=args["hf_token"]
+        )
+        shutil.copy2(MODEL_CARD_PATH, baseline.run_path / "README.md")
+        shutil.copy2(baseline.tokenizer_path, baseline.run_path / "tokenizer.json")
+        upload_folder(
+            repo_id=args["hf_repo_name"],
+            token=args["hf_token"],
+            folder_path=baseline.run_path,
+            ignore_patterns=IGNORE_PATTERNS,
+        )

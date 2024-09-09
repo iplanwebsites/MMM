@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING, Any
 
 import miditok
 
-from utils.utils import path_data_directory_local_fs
+from .utils import path_data_directory_local_fs
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -124,7 +124,7 @@ class Baseline(ABC):
 
         :return: path of the tokenizer's configuration file.
         """
-        return self.run_path / "tokenizer.json"
+        return self.run_path.parent / "tokenizer.json"
 
     @property
     def dataset_path(self) -> Path:

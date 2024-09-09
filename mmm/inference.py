@@ -12,7 +12,7 @@ from miditok import MMM, TokSequence
 from symusic import Score
 from transformers import GenerationConfig, PreTrainedModel
 
-from utils.constants import GENERATION_CONFIG_PARAMS
+from scripts.utils.constants import GENERATION_CONFIG_PARAMS
 
 if TYPE_CHECKING:
     from pathlib import Path
