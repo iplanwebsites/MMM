@@ -134,7 +134,9 @@ def whole_training_process(
     """from tqdm import tqdm
     from torch.utils.data import DataLoader
 
-    dataloader = DataLoader(subsets["train"], batch_size=30, collate_fn=collator)
+    dataloader = DataLoader(
+        subsets["train"], batch_size=30, collate_fn=collator, num_workers=8
+    )
     for x in tqdm(dataloader, desc="iterating over dataloader"):
         t = 0"""
 
