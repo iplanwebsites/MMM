@@ -11,16 +11,16 @@
 #SBATCH --nodes=1            # total nb of nodes
 #SBATCH --ntasks-per-node=1  # nb of tasks per node
 #SBATCH --gpus-per-node=a100:4
-#SBATCH --cpus-per-task=4   # nb of CPU cores per task
-#SBATCH --mem=40G
+#SBATCH --cpus-per-task=10   # nb of CPU cores per task
+#SBATCH --mem=60G
 #SBATCH --time=24:00:00
 
 # Define args
 MODEL_TRAIN_ARGS=" \
-    --deepspeed \
+    --deepspeed slurm/ds_config.json \
     --per-device-train-batch-size 12 \
     --per-device-eval-batch-size 18 \
-    --model MMM_T5 \
+    --model MMM_t5 \
     "
 
 # Output GPUs and ram info

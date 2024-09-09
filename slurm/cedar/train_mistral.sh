@@ -9,18 +9,19 @@
 #SBATCH --account=def-pasquier
 #SBATCH --mail-user=raa60@sfu.ca # Default mail
 #SBATCH --nodes=1            # total nb of nodes
+#SBATCH --exclusive
 #SBATCH --ntasks-per-node=1  # nb of tasks per node
-#SBATCH --gpus-per-node=a100:4
-#SBATCH --cpus-per-task=4   # nb of CPU cores per task
-#SBATCH --mem=40G
+#SBATCH --gpus-per-node=v100l:4
+#SBATCH --cpus-per-task=10   # nb of CPU cores per task
+#SBATCH --mem=60G
 #SBATCH --time=24:00:00
 
 # Define args
 MODEL_TRAIN_ARGS=" \
-    --deepspeed \
+    --deepspeed slurm/ds_config.json \
     --per-device-train-batch-size 12 \
     --per-device-eval-batch-size 18 \
-    --model MMM_Mistral \
+    --model MMM_mistral \
     "
 
 # Output GPUs and ram info
@@ -72,7 +73,7 @@ source .venv/bin/activate
 
 # Run the training
 # Tensorboard can be access by running (with computenode replaced with the node hostname):
-# ssh -N -f -L localhost:6006:computenode:6006 userid@narval.computecanada.ca
+# ssh -N -f -L localhost:6006:computenode:6006 userid@cedar.computecanada.ca
 tensorboard --logdir=runs --host 0.0.0.0 --load_fast false & srun --jobid "$SLURM_JOBID" bash -c "$LAUNCHER scripts/train_model.py $MODEL_TRAIN_ARGS"
 
 echo "END TIME: $(date)"
