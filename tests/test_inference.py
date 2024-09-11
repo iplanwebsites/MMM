@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import pytest
+import symusic
 from miditok import MMM, TokenizerConfig
 from transformers import MistralConfig, MistralForCausalLM
 from .utils_tests import MIDI_PATH
@@ -18,7 +19,6 @@ from utils.constants import (
 
 from pathlib import Path
 
-# TODO: Test track generation
 INFERENCE_CONFIG = InferenceConfig(
     {
         0: [(4, 8, ["ACBarNoteDensity_6", "ACBarNoteDurationEight_1"])],
@@ -40,13 +40,14 @@ MISTRAL_CONFIG = MistralConfig(
 )
 
 
-@pytest.mark.parametrize("tokenizer", [MMM(TokenizerConfig(**TOKENIZER_PARAMS))])
+@pytest.mark.parametrize("tokenizer", [MMM(params=Path(__file__).parent.parent/"runs"/"tokenizer.json")])
 @pytest.mark.parametrize("inference_config", [INFERENCE_CONFIG])
 @pytest.mark.parametrize("input_midi_path", [MIDI_PATH])
 def test_generate(
     tokenizer: MMM, inference_config: InferenceConfig, input_midi_path: str | Path
 ):
     MISTRAL_CONFIG.vocab_size = tokenizer.vocab_size
+
     output_score = generate(
         MistralForCausalLM(MISTRAL_CONFIG),
         tokenizer,
@@ -54,6 +55,6 @@ def test_generate(
         input_midi_path,
     )
 
-    output_score.dump_midi(Path(__file__).parent/"tests_output"/"midi_out_final.mid")
+    output_score.dump_midi(Path(__file__).parent/"tests_output"/"midi_out_bpe.mid")
 
 
