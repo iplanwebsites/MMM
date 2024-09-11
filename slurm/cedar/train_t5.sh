@@ -14,13 +14,14 @@
 #SBATCH --gpus-per-node=v100l:4
 #SBATCH --cpus-per-task=10   # nb of CPU cores per task
 #SBATCH --mem=60G
-#SBATCH --time=24:00:00
+#SBATCH --time=72:00:00
 
 # Define args
 MODEL_TRAIN_ARGS=" \
     --deepspeed slurm/ds_config.json \
-    --per-device-train-batch-size 12 \
-    --per-device-eval-batch-size 18 \
+    --per-device-train-batch-size 16 \
+    --per-device-eval-batch-size 32 \
+    --gradient-accumulation-steps 2 \
     --model MMM_t5 \
     "
 
@@ -31,14 +32,15 @@ nvidia-smi topo -m
 free -h
 
 # Hardware vars
-GPUS_PER_NODE=4
-MASTER_ADDR=$(scontrol show hostnames "$SLURM_JOB_NODELIST" | head -n 1)
+MASTER_HOSTNAME=$(scontrol show hostnames "$SLURM_JOB_NODELIST" | head -n 1)
+MASTER_IP=$(srun --nodes=1 --ntasks=1 -w "$MASTER_HOSTNAME" hostname --ip-address)
 MASTER_PORT=9902
-echo "Master addr: $MASTER_ADDR"
+echo "Master hostname: $MASTER_HOSTNAME"
+echo "Master addr: $MASTER_IP"
 echo "Node list: $SLURM_JOB_NODELIST"
 
 # Defining the right environment variables
-export PYTHONPATH=$HOME/MMM
+export PYTHONPATH=$SCRATCH/MMM
 export HF_HOME=$SLURM_TMPDIR/.hf_cache
 export HF_METRICS_OFFLINE=1
 export TRANSFORMERS_OFFLINE=1
@@ -56,16 +58,18 @@ export TOKENIZERS_PARALLELISM=0
 srun --ntasks=$SLURM_NNODES --ntasks-per-node=1 bash -c "mkdir $SLURM_TMPDIR/data && cp -r $SCRATCH/data/GigaMIDI $SLURM_TMPDIR/data/"
 
 # Set launcher command with params
-export LAUNCHER="torchrun \
-    --nproc_per_node $GPUS_PER_NODE \
-    --nnodes $SLURM_NNODES \
-    --node_rank $SLURM_PROCID \
-    --rdzv_endpoint $MASTER_ADDR:$MASTER_PORT \
-    --rdzv_backend c10d \
-    --max_restarts 0 \
-    --role $SLURMD_NODENAME: \
-    --tee 3 \
-    "
+#export LAUNCHER="torchrun \
+#    --nproc_per_node $SLURM_GPUS_PER_NODE \
+#    --nnodes $SLURM_NNODES \
+#    --node_rank $SLURM_PROCID \
+#    --rdzv_endpoint $MASTER_IP:$MASTER_PORT \
+#    --rdzv_backend c10d \
+#    --max_restarts 0 \
+#    --role $SLURMD_NODENAME: \
+#    --tee 3 \
+#    "
+# Replace with line below when using one unique node
+export LAUNCHER="torchrun --nproc_per_node $SLURM_GPUS_PER_NODE"
 
 # Load the python environment
 module load gcc arrow/17.0.0  # needed since arrow can't be installed in the venv via pip

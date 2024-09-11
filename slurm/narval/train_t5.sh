@@ -30,10 +30,11 @@ nvidia-smi topo -m
 free -h
 
 # Hardware vars
-GPUS_PER_NODE=4
-MASTER_ADDR=$(scontrol show hostnames "$SLURM_JOB_NODELIST" | head -n 1)
+MASTER_HOSTNAME=$(scontrol show hostnames "$SLURM_JOB_NODELIST" | head -n 1)
+MASTER_IP=$(srun --nodes=1 --ntasks=1 -w "$MASTER_HOSTNAME" hostname --ip-address)
 MASTER_PORT=9902
-echo "Master addr: $MASTER_ADDR"
+echo "Master hostname: $MASTER_HOSTNAME"
+echo "Master addr: $MASTER_IP"
 echo "Node list: $SLURM_JOB_NODELIST"
 
 # Defining the right environment variables
@@ -56,7 +57,7 @@ srun --ntasks=$SLURM_NNODES --ntasks-per-node=1 bash -c "mkdir $SLURM_TMPDIR/dat
 
 # Set launcher command with params
 export LAUNCHER="torchrun \
-    --nproc_per_node $GPUS_PER_NODE \
+    --nproc_per_node $SLURM_GPUS_PER_NODE \
     --nnodes $SLURM_NNODES \
     --node_rank $SLURM_PROCID \
     --rdzv_endpoint $MASTER_ADDR:$MASTER_PORT \

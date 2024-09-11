@@ -18,7 +18,10 @@ if __name__ == "__main__":
         if param.annotation is bool:
             parser.add_argument(f"--{key}", action=BooleanOptionalAction, default=None)
         else:
-            parser.add_argument(f"--{key}", type=param.annotation, default=None)
+            kwargs = {"default": None}
+            if param.annotation in (int, float, str):
+                kwargs["type"] = param.annotation
+            parser.add_argument(f"--{key}", **kwargs)
     args = vars(parser.parse_args())
 
     # Identify model to train and tweak its training configuration
