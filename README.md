@@ -31,6 +31,20 @@ Before running these commands, make sure to load a virtual Python environment if
 pip install ".[train]"
 ```
 
+#### On Compute Canada:
+
+```bash
+module load python/3.11
+virtualenv .venv
+sbatch slurm/install_dependencies.sh
+```
+
+Flash attention might need to be installed from source (need to clone the github repository):
+
+```bash
+sbatch slurm/install_flashattention.sh
+```
+
 ### Preparing the data
 
 MMM is trained on the [GigaMIDI](https://huggingface.co/datasets/Metacreation/GigaMIDI) dataset. On GPU clusters, the compute nodes usually can't access the internet. The dataset hence must be already downloaded before running the training itself on the nodes.
