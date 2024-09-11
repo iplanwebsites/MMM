@@ -11,6 +11,11 @@ while [[ $# -gt 0 ]]; do
       shift # past argument
       shift # past value
       ;;
+    -c|--cluster)
+      CLUSTER="$2"
+      shift # past argument
+      shift # past value
+      ;;
     -*|--*)
       echo "Unknown option $1"
       exit 1
@@ -30,7 +35,7 @@ COUNT=0
 # Loop job until training is done
 while [ ! -f "$TEST_RESULTS_FILE" ];
 do
-    sbatch --wait "slurm/train_${MODEL}.sh"
+    sbatch --wait "slurm/$CLUSTER/train_${MODEL}.sh"
     mv "logs/train-${MODEL}.out" "logs/train-${MODEL}_${COUNT}.out"
     mv "logs/train-${MODEL}_err.out" "logs/train-${MODEL}_${COUNT}_err.out"
     ((COUNT++))
