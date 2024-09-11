@@ -9,7 +9,6 @@
 #SBATCH --account=def-pasquier
 #SBATCH --mail-user=raa60@sfu.ca # Default mail
 #SBATCH --nodes=1            # total nb of nodes
-#SBATCH --exclusive
 #SBATCH --ntasks-per-node=1  # nb of tasks per node
 #SBATCH --gpus-per-node=v100l:4
 #SBATCH --cpus-per-task=10   # nb of CPU cores per task
