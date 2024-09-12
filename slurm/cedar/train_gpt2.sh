@@ -12,7 +12,7 @@
 #SBATCH --ntasks-per-node=1  # nb of tasks per node
 #SBATCH --gpus-per-node=v100l:4
 #SBATCH --cpus-per-task=10   # nb of CPU cores per task
-#SBATCH --mem=60G
+#SBATCH --mem=100G
 #SBATCH --time=72:00:00
 
 # Define args
