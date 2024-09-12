@@ -53,6 +53,10 @@ train = [
     "transformers>=4.43.3",
     "flash_attn",  # require pre-compiled wheel
 ]
+tests = [
+    "pytest-cov",
+    "pytest-xdist[psutil]",
+]
 
 [project.urls]
 Homepage = "https://github.com/Metacreation-Lab/MMM"
