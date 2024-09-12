@@ -6,8 +6,6 @@ import pytest
 from datasets import load_dataset
 from miditok import MMM
 from symusic import Score
-
-from mmm import DatasetMMM
 from utils.constants import (
     ACS_RANDOM_RATIO_RANGE,
     BARS_IDX_RANDOM_RATIO_RANGE,
@@ -18,6 +16,8 @@ from utils.constants import (
     TRACKS_IDX_RANDOM_RATIO_RANGE,
     TRACKS_SELECTION_RANDOM_RATIO_RANGE,
 )
+
+from mmm import DatasetMMM
 
 from .utils_tests import MIDI_PATHS
 

@@ -9,9 +9,6 @@ from miditok import MMM
 from transformers import MistralConfig, MistralForCausalLM
 
 from mmm import InferenceConfig, generate
-from scripts.utils.constants import (
-    TOKENIZER_PARAMS,
-)
 
 from .utils_tests import MIDI_PATH
 

@@ -6,7 +6,6 @@ from random import choice, random, sample, uniform
 from typing import TYPE_CHECKING
 
 import numpy as np
-import torch
 from miditok import TokSequence
 from miditok.attribute_controls import BarAttributeControl
 from miditok.constants import SCORE_LOADING_EXCEPTION
@@ -17,7 +16,7 @@ from miditok.data_augmentation.data_augmentation import (
 from miditok.pytorch_data import DatasetMIDI
 from miditok.utils import get_bars_ticks
 from symusic import Score
-from torch import LongTensor
+from torch import LongTensor, isin
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -144,19 +143,16 @@ class DatasetMMM(DatasetMIDI):
         # Token ids that should be masked from the "labels" entry so that the loss is
         # not computed other them. Doing so, the model will not be trained to predict
         # them.
-        self._token_ids_no_loss = torch.concat(
+        self._token_ids_no_loss = LongTensor(
             [
-                torch.LongTensor(
-                    [self._infill_bar_token_id, self._infill_bar_start_token_id]
-                ),
-                torch.LongTensor(
-                    [
-                        tokenizer.vocab[token]
-                        for ac in tokenizer.attribute_controls
-                        for token in ac.tokens
-                    ]
-                ),
-            ]
+                self._infill_bar_token_id,
+                self._infill_bar_start_token_id,
+                *[
+                    tokenizer.vocab[token]
+                    for ac in tokenizer.attribute_controls
+                    for token in ac.tokens
+                ],
+            ],
         )
 
         self._ac_tracks, self._ac_bars = [], []
@@ -231,7 +227,9 @@ class DatasetMMM(DatasetMIDI):
             item[self.labels_key_name] = item[self.decoder_key_name].clone()
         else:
             item[self.labels_key_name] = item[self.sample_key_name].clone()
-        idx_tokens_to_discard = torch.isin(
+
+        # Set ids of elements to discard to -100
+        idx_tokens_to_discard = isin(
             item[self.labels_key_name], self._token_ids_no_loss
         )
         item[self.labels_key_name][idx_tokens_to_discard] = -100
