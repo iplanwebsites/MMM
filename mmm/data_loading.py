@@ -95,7 +95,7 @@ class DatasetMMM(DatasetMIDI):
 
     def __init__(
         self,
-        dataset: Dataset,
+        dataset: Dataset,  # TODO just iterable and remove hf dependency
         tokenizer: MMM,
         max_seq_len: int,
         ratio_random_tracks_range: tuple[float, float],
