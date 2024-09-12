@@ -247,8 +247,7 @@ class DatasetMMM(DatasetMIDI):
         score.key_signatures = []
         for track in score.tracks:
             track.controls = []
-            if hasattr(track, "lyrics"):
-                track.lyrics = []
+            track.lyrics = []
             if not self.tokenizer.config.use_sustain_pedals:
                 track.pedals = []
             if not self.tokenizer.config.use_pitch_bends:
