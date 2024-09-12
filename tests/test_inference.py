@@ -2,22 +2,19 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from pathlib import Path
 
 import pytest
-import symusic
-from miditok import MMM, TokenizerConfig
+from miditok import MMM
 from transformers import MistralConfig, MistralForCausalLM
-from .utils_tests import MIDI_PATH
 
 from mmm.inference import generate
 from utils.classes import InferenceConfig
 from utils.constants import (
     SLIDING_WINDOWS,
-    TOKENIZER_PARAMS,
 )
 
-from pathlib import Path
+from .utils_tests import MIDI_PATH
 
 INFERENCE_CONFIG = InferenceConfig(
     {
@@ -40,7 +37,9 @@ MISTRAL_CONFIG = MistralConfig(
 )
 
 
-@pytest.mark.parametrize("tokenizer", [MMM(params=Path(__file__).parent.parent/"runs"/"tokenizer.json")])
+@pytest.mark.parametrize(
+    "tokenizer", [MMM(params=Path(__file__).parent.parent / "runs" / "tokenizer.json")]
+)
 @pytest.mark.parametrize("inference_config", [INFERENCE_CONFIG])
 @pytest.mark.parametrize("input_midi_path", [MIDI_PATH])
 def test_generate(
@@ -55,6 +54,4 @@ def test_generate(
         input_midi_path,
     )
 
-    output_score.dump_midi(Path(__file__).parent/"tests_output"/"midi_out_bpe.mid")
-
-
+    output_score.dump_midi(Path(__file__).parent / "tests_output" / "midi_out_bpe.mid")
