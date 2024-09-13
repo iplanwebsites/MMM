@@ -96,13 +96,7 @@ def generate_new_track(
         input_seq.tokens.append(control)
 
     output_ids = model.generate(LongTensor([input_seq.ids]), **generate_kwargs)
-    output_ids = output_ids[0].numpy()
-
-    # TODO: When the model is ready remove this block and
-    #  remove attribute controls from output_ids
-
-    output_seq = TokSequence(are_ids_encoded=True)
-    output_seq.ids = output_ids.tolist()
+    output_seq = TokSequence(ids=output_ids[0].tolist(), are_ids_encoded=True)
 
     # Decode BPE ids before getting the associated tokens
     tokenizer.decode_token_ids(output_seq)
@@ -150,7 +144,7 @@ def generate_infilling(
     input_tokens = tokenizer.encode(score, concatenate_track_sequences=False)
 
     for track_to_infill in tracks_to_infill:
-        output_tokens = infill_bars(
+        infill_bars(
             model,
             tokenizer,
             track_to_infill,
@@ -160,7 +154,7 @@ def generate_infilling(
         )
 
     # Here we use the base tokenizer because output_tokens is a list of TokSequences
-    return tokenizer.base_tokenizer._tokens_to_score(output_tokens)
+    return tokenizer.base_tokenizer._tokens_to_score(input_tokens)
 
 
 def infill_bars(
@@ -168,11 +162,13 @@ def infill_bars(
     tokenizer: MMM,
     track_idx: int,
     inference_config: InferenceConfig,
-    tokens: TokSequence,
+    tokens: list[TokSequence],
     generate_kwargs: Mapping | None = None,
-) -> TokSequence:
+) -> None:
     """
     Infill bars for the ''track_idx'' track.
+
+    The tokens are replaced inplace.
 
     :param model: model used for generation
     :param tokenizer: MMM tokenizer
@@ -183,7 +179,6 @@ def infill_bars(
     :param generate_kwargs: keyword arguments to provide to the ``model.generate``
         method. For Hugging Face models for example, you can provide a
         ``GenerationConfig`` using this argument.
-    :return: Infilled TokSequence
     """
     if not generate_kwargs:
         generate_kwargs = {}
@@ -196,10 +191,9 @@ def infill_bars(
             tokenizer, track_idx, tokens, subset_bars_to_infill
         )
 
-        output_ids = model.generate(LongTensor([input_seq.ids]), **generate_kwargs)
-        output_ids = output_ids[0].numpy()
-
-        # TODO: Remove this when model is ready (FOR TESTING PURPOSES ONLY)
+        output_ids = model.generate(LongTensor([input_seq.ids]), **generate_kwargs)[
+            0
+        ].numpy()
 
         fill_start_idx = np.where(output_ids == tokenizer.vocab["FillBar_Start"])[0][0]
         track_end_idx = np.where(output_ids == tokenizer.vocab["Track_End"])[0][0]
@@ -225,17 +219,14 @@ def infill_bars(
         tokenizer.decode_token_ids(replacing_tokens)
         replacing_tokens.tokens = tokenizer._ids_to_tokens(replacing_tokens.ids)
 
-        # I assume the model will generate Bar_None at the right position
-
+        # The model is assumed to generate Bar_None at the right position
         tokens[track_idx] = replacing_tokens
-
-    return tokens
 
 
 def _adapt_prompt_for_bar_infilling(
     tokenizer: MMM,
     track_idx: int,
-    tokens: TokSequence,
+    tokens: list[TokSequence],
     subset_bars_to_infill: tuple[int, int, list[str]],
 ) -> TokSequence:
     """

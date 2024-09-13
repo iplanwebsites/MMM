@@ -22,4 +22,8 @@ class DummyModel:
         :param token_ids: token ids.
         :return: supposedly generated token ids.
         """
+        # TODO analyze if the instruction is to infill (Infill token somewhere) or gen a
+        #  new track (last token should be a `Program`).
+        #  Load a dummy MIDI file (use the first track), reduce to n bars if infilling n
+        #  bars, tokenize it and concatenate the tokens to the input_ids.
         return token_ids
