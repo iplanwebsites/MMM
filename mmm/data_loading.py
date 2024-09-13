@@ -162,6 +162,7 @@ class DatasetMMM(DatasetMIDI):
             else:
                 self._ac_tracks.append(i)
 
+        max_seq_len -= sum([1 for t in [bos_token_id, eos_token_id] if t is not None])
         super().__init__(
             [],
             tokenizer,
@@ -174,11 +175,6 @@ class DatasetMMM(DatasetMIDI):
             func_to_get_labels=func_to_get_labels,
             sample_key_name=sample_key_name,
             labels_key_name=labels_key_name,
-        )
-        self._max_seq_len = (
-            self.max_seq_len
-            - sum([1 for t in [bos_token_id, eos_token_id] if t is not None])
-            - 1
         )
         self.decoder_key_name = decoder_key_name
 
@@ -366,13 +362,20 @@ class DatasetMMM(DatasetMIDI):
         # Select the chunk of tokens to proceed with based on the sequence length
         # Get the indexes of the token ids from which new bars begin
         # This can unfortunately remove tempos events as they do not begin at each bar.
-        if sum(len(seq) for seq in sequences) > self._max_seq_len:
-            # Effective max_seq_len considering Track_Start/End token to reinsert
-            max_seq_len_effective = self._max_seq_len - 2 * len(sequences)
-            if bar_infilling:  # # Infill_Bar + FillBar_Start/End + Program
-                max_seq_len_effective -= infill_section_num_bars + 3
-            elif self.seq2seq:  # Infill_Track
-                max_seq_len_effective -= 1
+        # Effective max_seq_len considering Track_Start/End tokens for the portion to
+        # infill.
+        max_seq_len_effective = self.max_seq_len - 2
+        if bar_infilling:  # n Infill_Bar + FillBar_Start/End tokens
+            max_seq_len_effective -= infill_section_num_bars + 2
+        elif self.seq2seq:  # Infill_Track
+            max_seq_len_effective -= 1
+        if sum(len(seq) for seq in sequences) > max_seq_len_effective:
+            # max_seq_len_effective will be used to extract tokens within each seq
+            # To extract the right number of tokens, we need to decrement it to
+            # consider the Track_Start/Program/Track_End tokens, and Infill tokens
+            max_seq_len_effective = self.max_seq_len - 3 * len(sequences)
+            if bar_infilling:  # n Infill_Bar + FillBar_Start/End tokens
+                max_seq_len_effective -= infill_section_num_bars + 2
             bar_tokens_idx_per_seq = [
                 [
                     i
@@ -382,9 +385,9 @@ class DatasetMMM(DatasetMIDI):
                 ]
                 for seq in sequences
             ]
-            num_bars = max(len(seq) for seq in bar_tokens_idx_per_seq)
+            num_bars_per_seq = max(len(seq) for seq in bar_tokens_idx_per_seq)
             # Count the number of tokens making each bar
-            bars_num_tokens_per_seq = []
+            bars_num_tokens_per_seq = []  # (S, B*)
             for bar_tokens_idx, seq in zip(bar_tokens_idx_per_seq, sequences):
                 """# The first values are set to 0 to include the first tokens
                 if len(bar_tokens_idx) > 0:
@@ -401,12 +404,12 @@ class DatasetMMM(DatasetMIDI):
                     len(seq.ids) - bar_tokens_idx[-1]
                 )  # num tokens last bar
                 bars_num_tokens_per_seq.append(num_tokens_bar)
-            bars_num_tokens = [
+            bars_num_tokens = [  # (B)
                 sum(
                     seq[bar_num] if len(seq) > bar_num else 0
                     for seq in bars_num_tokens_per_seq
                 )
-                for bar_num in range(num_bars)
+                for bar_num in range(num_bars_per_seq)
             ]
             # Select the beginning (first bar) of the chunk to return
             # If bar infilling, we make sure to keep the part to infill
@@ -436,7 +439,7 @@ class DatasetMMM(DatasetMIDI):
             else:
                 min_bar_start_idx = 0
                 cumsum_inv = np.cumsum(np.flip(np.array(bars_num_tokens)))
-                max_bar_start_idx = num_bars - len(
+                max_bar_start_idx = num_bars_per_seq - len(
                     np.nonzero(cumsum_inv < max_seq_len_effective)[0]
                 )
             population = [
@@ -447,7 +450,7 @@ class DatasetMMM(DatasetMIDI):
             bar_start_idx = choice(population)
             cumsum_start = np.cumsum(bars_num_tokens[bar_start_idx:])
             bar_end_idx = (
-                num_bars - 1
+                num_bars_per_seq - 1
                 if cumsum_start[-1] < max_seq_len_effective
                 else bar_start_idx
                 + np.nonzero(cumsum_start >= max_seq_len_effective)[0][0]
@@ -488,11 +491,11 @@ class DatasetMMM(DatasetMIDI):
                 sequences[i] = TokSequence(
                     ids=seq.ids[tok_idx_start:tok_idx_end], are_ids_encoded=True
                 )
-                # Include track_start and track_end
+                # Add Track_Start, Program and Track_End tokens
                 sequences[i].ids.insert(0, self._track_start_token_id)
                 sequences[i].ids.insert(1, program_id)
                 # Add track_end if bar_end_idx isn't the last bar as already included
-                if bar_end_idx + 1 < num_bars:
+                if bar_end_idx + 1 < num_bars_per_seq:
                     sequences[i].ids.append(self._track_end_token_id)
                 # For debug
                 # self.tokenizer.decode_token_ids(sequences[i])

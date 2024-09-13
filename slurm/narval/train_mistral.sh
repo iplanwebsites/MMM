@@ -43,6 +43,7 @@ export HF_HOME=$SLURM_TMPDIR/.hf_cache
 export HF_METRICS_OFFLINE=1
 export TRANSFORMERS_OFFLINE=1
 export OMP_NUM_THREADS=1
+export NCCL_DEBUG=WARN
 # The below variable is required to avoid a warning with the hf tokenizers lib and multiprocessing
 # Weirdly, the tokenizer lib is used somewhere before that the dataloader create several workers,
 # even when average_num_tokens_per_note is hardcoded in the Dataset class
