@@ -57,6 +57,9 @@ train = [
 Homepage = "https://github.com/Metacreation-Lab/MMM"
 Documentation = "https://mmm.readthedocs.io"
 
+[tool.hatch.metadata]
+allow-direct-references = true
+
 [tool.hatch.version]
 path = "mmm/__init__.py"
 
