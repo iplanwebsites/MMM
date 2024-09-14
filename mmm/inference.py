@@ -98,6 +98,10 @@ def generate_new_track(
     output_ids = model.generate(LongTensor([input_seq.ids]), **generate_kwargs)
     output_seq = TokSequence(ids=output_ids[0].tolist(), are_ids_encoded=True)
 
+    # Remove attribute controls from the sequence
+    # TODO: TEST this line
+    output_seq = output_seq[:len(input_seq)] + output_seq[len(input_seq) +len(track[1]):]
+
     # Decode BPE ids before getting the associated tokens
     tokenizer.decode_token_ids(output_seq)
     output_seq.tokens = tokenizer._ids_to_tokens(output_seq.ids)

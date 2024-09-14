@@ -43,6 +43,7 @@ dependencies = [
     "miditok>=2.4.0",
     "torch>=2.0.0",
     "tqdm>=4.0.0",
+    "pytest",
 ]
 
 [project.optional-dependencies]
