@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 
+
+@dataclass
 class InferenceConfig:
     """
     Configuration for the inference of MMM.
@@ -19,7 +22,7 @@ class InferenceConfig:
     """
 
     bars_to_generate: dict[int, list[tuple[int, int, list[str]]]] | None = None
-    new_tracks: list[tuple[int, list[str]]]
+    new_tracks: list[tuple[int, list[str]]] | None = None
 
     def __post_init__(self) -> None:
         """Check that the Inference config is consistent."""

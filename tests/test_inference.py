@@ -2,51 +2,44 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from pathlib import Path
 
 import pytest
-from miditok import MMM, TokenizerConfig
-from transformers import MistralConfig, MistralForCausalLM
-from utils_tests import MIDI_PATH
+from miditok import MMM
 
 from mmm import InferenceConfig, generate
-from scripts.utils.constants import (
-    TOKENIZER_PARAMS,
-)
 
-if TYPE_CHECKING:
-    from pathlib import Path
+from .utils_tests import MIDI_PATHS, DummyModel
 
 INFERENCE_CONFIG = InferenceConfig(
     {
-        0: [(12, 16, ["ACBarNoteDensity_6", "ACBarNoteDurationEight_1"])],
-        3: [(24, 26, ["ACBarNoteDensity_6", "ACBarNoteDurationEight_1"])],
+        0: [(4, 8, ["ACBarNoteDensity_6", "ACBarNoteDurationEight_1"])],
+        # 2: [(4, 8, ["ACBarNoteDensity_6", "ACBarNoteDurationEight_1"])],
+        # 3: [(4, 8, ["ACBarNoteDensity_6", "ACBarNoteDurationEight_1"])],
     },
     [
         (43, ["ACTrackOnsetPolyphonyMax_2", "ACTrackNoteDensityMin_8"]),
     ],
 )
 
-MISTRAL_CONFIG = MistralConfig(
-    hidden_size=128,
-    intermediate_size=128 * 4,
-    num_hidden_layers=2,
-    num_attention_heads=2,
-    num_key_value_heads=1,
-    sliding_window=384,
+
+@pytest.mark.parametrize(
+    "tokenizer", [MMM(params=Path(__file__).parent.parent / "runs" / "tokenizer.json")]
 )
-
-
-@pytest.mark.parametrize("tokenizer", [MMM(TokenizerConfig(**TOKENIZER_PARAMS))])
 @pytest.mark.parametrize("inference_config", [INFERENCE_CONFIG])
-@pytest.mark.parametrize("input_midi_path", [MIDI_PATH])
+@pytest.mark.parametrize("input_midi_path", MIDI_PATHS)
 def test_generate(
     tokenizer: MMM, inference_config: InferenceConfig, input_midi_path: str | Path
 ):
-    MISTRAL_CONFIG.vocab_size = tokenizer.vocab_size
-    generate(
-        MistralForCausalLM(MISTRAL_CONFIG),
+    model = DummyModel(tokenizer)
+
+    _ = generate(
+        model,
         tokenizer,
         inference_config,
         input_midi_path,
     )
+
+    """output_score.dump_midi(
+        Path(__file__).parent / "tests_output" / "midi_out_bpe_dummy.mid"
+    )"""
