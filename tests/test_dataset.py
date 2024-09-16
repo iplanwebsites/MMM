@@ -37,7 +37,10 @@ def test_dataset(tokenizer: MMM):
         ac_bars_random_ratio_range=(0.1, 0.7),
     )
     for sample in dataset_obj:
-        if (num_tokens := len(sample["input_ids"])) <= MAX_SEQ_LEN:
+        if (
+            sample["input_ids"] is not None
+            and (num_tokens := len(sample["input_ids"])) > MAX_SEQ_LEN
+        ):
             msg = (
                 f"The returned token ids sequence must contain fewer than "
                 f"{MAX_SEQ_LEN} tokens (found {num_tokens}"

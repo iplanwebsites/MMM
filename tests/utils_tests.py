@@ -22,22 +22,23 @@ class DummyModel:
         self._bar_none_token_id = self.tokenizer["Bar_None"]
         score = Score(MIDI_PATH)
 
-        kwargs={}
+        kwargs = {}
         if type(self.tokenizer).__name__ == "MMM":
             kwargs["concatenate_track_sequences"] = False
 
         tokens = tokenizer(score, **kwargs)
 
         tokenizer.decode_token_ids(tokens[0])
-        bar_none_tokens = np.where(np.array(tokens[0].ids) ==
-                                   self._bar_none_token_id)[0]
+        bar_none_tokens = np.where(np.array(tokens[0].ids) == self._bar_none_token_id)[
+            0
+        ]
         # Get 4 bars of content for the infilling part
-        self.infill_generated_tokens = tokens[0].ids[bar_none_tokens[0]:
-                                                     bar_none_tokens[4]]
+        self.infill_generated_tokens = tokens[0].ids[
+            bar_none_tokens[0] : bar_none_tokens[4]
+        ]
         self.infill_generated_tokens.append(tokenizer.vocab["FillBar_End"])
 
         self.track_generated_content = tokens[0].ids
-
 
     def generate(self, token_ids: LongTensor) -> LongTensor:
         """
