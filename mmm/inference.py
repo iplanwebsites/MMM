@@ -100,7 +100,9 @@ def generate_new_track(
 
     # Remove attribute controls from the sequence
     # TODO: TEST this line
-    output_seq = output_seq[:len(input_seq)] + output_seq[len(input_seq) +len(track[1]):]
+    output_seq = (
+        output_seq[: len(input_seq)] + output_seq[len(input_seq) + len(track[1]) :]
+    )
 
     # Decode BPE ids before getting the associated tokens
     tokenizer.decode_token_ids(output_seq)

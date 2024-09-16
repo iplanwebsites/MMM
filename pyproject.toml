@@ -40,7 +40,7 @@ classifiers = [
 dependencies = [
     "datasets",
     "numpy>=1.20.0",
-    "miditok>=2.4.0",
+    "miditok>=3.0.4",
     "torch>=2.0.0",
     "tqdm>=4.0.0",
     "pytest",

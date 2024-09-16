@@ -9,13 +9,13 @@ from miditok import MMM
 
 from mmm import InferenceConfig, generate
 
-from .utils_tests import MIDI_PATH, MIDI_PATHS, DummyModel
+from .utils_tests import MIDI_PATHS, DummyModel
 
 INFERENCE_CONFIG = InferenceConfig(
     {
         0: [(4, 8, ["ACBarNoteDensity_6", "ACBarNoteDurationEight_1"])],
-        #2: [(4, 8, ["ACBarNoteDensity_6", "ACBarNoteDurationEight_1"])],
-        #3: [(4, 8, ["ACBarNoteDensity_6", "ACBarNoteDurationEight_1"])],
+        # 2: [(4, 8, ["ACBarNoteDensity_6", "ACBarNoteDurationEight_1"])],
+        # 3: [(4, 8, ["ACBarNoteDensity_6", "ACBarNoteDurationEight_1"])],
     },
     [
         (43, ["ACTrackOnsetPolyphonyMax_2", "ACTrackNoteDensityMin_8"]),
@@ -31,13 +31,15 @@ INFERENCE_CONFIG = InferenceConfig(
 def test_generate(
     tokenizer: MMM, inference_config: InferenceConfig, input_midi_path: str | Path
 ):
-    model = DummyModel()
+    model = DummyModel(tokenizer)
 
-    output_score = generate(
+    _ = generate(
         model,
         tokenizer,
         inference_config,
         input_midi_path,
     )
 
-    #output_score.dump_midi(Path(__file__).parent / "tests_output" / "midi_out_bpe_dummy.mid")
+    """output_score.dump_midi(
+        Path(__file__).parent / "tests_output" / "midi_out_bpe_dummy.mid"
+    )"""
