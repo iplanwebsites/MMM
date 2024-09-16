@@ -2,12 +2,11 @@
 
 from pathlib import Path
 
+import numpy as np
 import torch
 from miditok import MMM
 from symusic import Score
 from torch import LongTensor
-
-import numpy as np
 
 HERE = Path(__file__).parent
 MIDI_PATHS = list((HERE / "midis").glob("**/*.mid"))
@@ -22,7 +21,6 @@ class DummyModel:
         self._bar_infilling_token_id = self.tokenizer["Infill_Bar"]
         self._bar_none_token_id = self.tokenizer["Bar_None"]
         score = Score(MIDI_PATH)
-        # TODO extract the desired portion from the score tokenize it and save attribute
 
         kwargs={}
         if type(self.tokenizer).__name__ == "MMM":
@@ -31,9 +29,11 @@ class DummyModel:
         tokens = tokenizer(score, **kwargs)
 
         tokenizer.decode_token_ids(tokens[0])
-        bar_none_tokens = np.where(np.array(tokens[0].ids) == self._bar_none_token_id)[0]
+        bar_none_tokens = np.where(np.array(tokens[0].ids) ==
+                                   self._bar_none_token_id)[0]
         # Get 4 bars of content for the infilling part
-        self.infill_generated_tokens = tokens[0].ids[bar_none_tokens[0]:bar_none_tokens[4]]
+        self.infill_generated_tokens = tokens[0].ids[bar_none_tokens[0]:
+                                                     bar_none_tokens[4]]
         self.infill_generated_tokens.append(tokenizer.vocab["FillBar_End"])
 
         self.track_generated_content = tokens[0].ids
