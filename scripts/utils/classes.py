@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import miditok
+import torch
 
 from .utils import path_data_directory_local_fs
 
@@ -19,8 +20,8 @@ if TYPE_CHECKING:
         DataCollator,
         GenerationConfig,
         PretrainedConfig,
-        PreTrainedModel,
-    )
+        PreTrainedModel, LogitsProcessor,
+)
 
 
 @dataclass
@@ -53,7 +54,6 @@ class TokenizationConfig:
     tokenization: str
     tokenizer_config: miditok.TokenizerConfig
     vocab_size: int = None
-
 
 @dataclass
 class Baseline(ABC):
