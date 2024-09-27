@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import time
 import warnings
 from typing import TYPE_CHECKING
 
@@ -152,6 +153,8 @@ def generate_infilling(
     """
     if not generate_kwargs:
         generate_kwargs = {}
+    else:
+        generate_kwargs["generation_config"].eos_token_id = tokenizer.vocab["FillBar_End"]
 
     tracks_to_infill = inference_config.bars_to_generate.keys()
     input_tokens = tokenizer.encode(score, concatenate_track_sequences=False)
@@ -212,39 +215,44 @@ def infill_bars(
         logit_processor_list = LogitsProcessorList()
         logit_processor_list.append(logits_processor)
 
+        start_time = time.time()
+
         output_ids = model.generate(LongTensor([input_seq.ids]), logits_processor=logit_processor_list ,**generate_kwargs)[
             0
         ].numpy()
 
-        fill_start_idx = np.where(output_ids == tokenizer.vocab["FillBar_Start"])[0][0]
-        track_end_idx = np.where(output_ids == tokenizer.vocab["Track_End"])[0][0]
+        end_time = time.time()
+        print("Generation time: ", end_time-start_time)
 
-        #fill_end_idx = np.where(output_ids == tokenizer.vocab["FillBar_End"])[0][0]
-        #infill_bar_idxs = np.where(output_ids == tokenizer.vocab["Infill_Bar"])[0]
+
+        fill_start_idx = np.where(output_ids == tokenizer.vocab["FillBar_Start"])[0][0]
+        #track_end_idx = np.where(output_ids == tokenizer.vocab["Track_End"])[0][0]
+
+        fill_end_idx = np.where(output_ids == tokenizer.vocab["FillBar_End"])[0][0]
+        infill_bar_idxs = np.where(output_ids == tokenizer.vocab["Infill_Bar"])[0]
 
         # For debugging purposes
         generated_tokens = TokSequence(are_ids_encoded=True)
-        generated_tokens.ids = output_ids[fill_start_idx:].tolist()
+        generated_tokens.ids = output_ids[fill_start_idx+len(subset_bars_to_infill[2])+1:len(output_ids)-1].tolist()
         tokenizer.decode_token_ids(generated_tokens)
-        generated_tokens.tokens = tokenizer._ids_to_tokens(generated_tokens.ids)
+        bar_none_token_idx = np.where(np.array(generated_tokens.ids) == tokenizer.vocab["Bar_None"])[0][-logits_processor.n_bars_to_infill]
+        generated_tokens.ids = generated_tokens.ids[bar_none_token_idx:]
+        generated_tokens.tokens = generated_tokens.tokens[bar_none_token_idx:]
 
-        # Open the file in write mode ('w') and write tokens
-        with open("output.txt", "w") as file:
-            # Write each token on a new line
-            file.write("\n".join(generated_tokens.tokens))
 
         replacing_tokens = TokSequence(are_ids_encoded=True)
 
         # subset_bars_to_infill[2] is the list of attribute controls
         replacing_tokens.ids = np.append(
             output_ids[: infill_bar_idxs[0]],
-            output_ids[
-                fill_start_idx + 1 + len(subset_bars_to_infill[2]) : fill_end_idx
-            ],
+            #output_ids[
+            #    fill_start_idx + 1 + len(subset_bars_to_infill[2]) : fill_end_idx
+            #],
+            generated_tokens.ids
         ).tolist()
         replacing_tokens.ids = np.append(
             replacing_tokens.ids,
-            output_ids[infill_bar_idxs[-1] + 1 : track_end_idx + 1],
+            output_ids[infill_bar_idxs[-1] + 1 : fill_start_idx],
         ).tolist()
 
         # Decode BPE ids before getting the associated tokens
