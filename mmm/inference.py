@@ -212,6 +212,7 @@ def infill_bars(
         )
 
         logits_processor.n_bars_to_infill = subset_bars_to_infill[1] - subset_bars_to_infill[0]
+        logits_processor.n_attribute_controls = len(subset_bars_to_infill[2])
         logit_processor_list = LogitsProcessorList()
         logit_processor_list.append(logits_processor)
 
@@ -223,21 +224,25 @@ def infill_bars(
 
         end_time = time.time()
         print("Generation time: ", end_time-start_time)
+        print("Time spent in logits processor ", logits_processor.total_time)
 
 
         fill_start_idx = np.where(output_ids == tokenizer.vocab["FillBar_Start"])[0][0]
-        #track_end_idx = np.where(output_ids == tokenizer.vocab["Track_End"])[0][0]
-
-        fill_end_idx = np.where(output_ids == tokenizer.vocab["FillBar_End"])[0][0]
         infill_bar_idxs = np.where(output_ids == tokenizer.vocab["Infill_Bar"])[0]
 
-        # For debugging purposes
+        # Here we isolate the generated tokens doing some filtering. In particular, the model may generate some tokens
+        # before the first Bar_None token
         generated_tokens = TokSequence(are_ids_encoded=True)
         generated_tokens.ids = output_ids[fill_start_idx+len(subset_bars_to_infill[2])+1:len(output_ids)-1].tolist()
+        # decode_token_ids doesn't support numpy arrays for ids list
         tokenizer.decode_token_ids(generated_tokens)
-        bar_none_token_idx = np.where(np.array(generated_tokens.ids) == tokenizer.vocab["Bar_None"])[0][-logits_processor.n_bars_to_infill]
-        generated_tokens.ids = generated_tokens.ids[bar_none_token_idx:]
-        generated_tokens.tokens = generated_tokens.tokens[bar_none_token_idx:]
+        bar_none_token_idx = np.where(np.array(generated_tokens.ids) == tokenizer.vocab["Bar_None"])[0]
+        if len(bar_none_token_idx) > 0:
+            bar_none_token_idx = bar_none_token_idx[-logits_processor.n_bars_to_infill]
+            generated_tokens.ids = generated_tokens.ids[bar_none_token_idx:]
+            generated_tokens.tokens = generated_tokens.tokens[bar_none_token_idx:]
+        else:
+            generated_tokens.ids = np.insert(np.array(generated_tokens.ids), 0, tokenizer.vocab["Bar_None"]).tolist()
 
 
         replacing_tokens = TokSequence(are_ids_encoded=True)

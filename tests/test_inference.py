@@ -26,7 +26,7 @@ from scripts.utils.constants import (
 )
 INFERENCE_CONFIG = InferenceConfig(
     {
-        0: [(4, 5, ["ACBarNoteDensity_6", "ACBarNoteDurationEight_1"])],
+        0: [(1, 2, ["ACBarNoteDensity_6", "ACBarNoteDurationEight_1"])],
         # 2: [(4, 8, ["ACBarNoteDensity_6", "ACBarNoteDurationEight_1"])],
         # 3: [(4, 8, ["ACBarNoteDensity_6", "ACBarNoteDurationEight_1"])],
     },

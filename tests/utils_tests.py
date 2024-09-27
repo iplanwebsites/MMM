@@ -12,6 +12,9 @@ HERE = Path(__file__).parent
 MIDI_PATHS = list((HERE / "midis").glob("**/*.mid"))
 MIDI_PATH = HERE / "midis" / "I Gotta Feeling.mid"
 
+#Used to test limit cases
+#MIDI_PATH = HERE / "test_real_time" / "midis" / "4_bar.mid"
+
 
 class DummyModel:
     """Dummy model used to test generation code."""
