@@ -5,7 +5,8 @@
 from __future__ import annotations
 
 import json
-from typing import TYPE_CHECKING
+from pathlib import Path
+from shutil import copy2
 
 from datasets import Dataset
 from miditok.constants import SCORE_LOADING_EXCEPTION
@@ -15,10 +16,6 @@ from tqdm import tqdm
 from webdataset import ShardWriter
 
 from scripts.utils.GigaMIDI.GigaMIDI import _SPLITS
-
-if TYPE_CHECKING:
-    from pathlib import Path
-
 
 MAX_NUM_ENTRIES_PER_SHARD = 50000
 SUBSET_PATHS = {
@@ -205,6 +202,8 @@ def create_webdataset_gigamidi(main_data_dir_path: Path) -> None:
     # Saving n shards
     with (webdataset_path / "n_shards.json").open("w") as f:
         json.dump(num_shards, f, indent=4)
+    # Copy loading script
+    copy2(Path("scripts", "utils", "GigaMIDI.py"), webdataset_path / "GigaMIDI.py")
 
 
 def load_dataset_from_generator(

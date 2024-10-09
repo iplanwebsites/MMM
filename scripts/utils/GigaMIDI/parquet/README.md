@@ -183,27 +183,27 @@ def is_score_valid(
 
 dataset = load_dataset("Metacreation/GigaMIDI", "all-instruments-with-drums", trust_remote_code=True, split="train")
 dataset = dataset.filter(
-    lambda ex: is_score_valid(ex["music"]["bytes"], min_num_bars=8, min_num_notes=50)
+    lambda ex: is_score_valid(ex["music"], min_num_bars=8, min_num_notes=50)
 )
 ```
 
 ### Export MIDI files
 
-The GigaMIDI dataset is provided in parquet format for ease of use with the Hugging Face datasets library. If you wish to use the "raw" MIDI files, you can simply iterate over the dataset as shown in the examples above and write the `[music][bytes]` entry of each sample on your local filesystem as a MIDI file.
+The GigaMIDI dataset is provided in parquet format for ease of use with the Hugging Face datasets library. If you wish to use the "raw" MIDI files, you can simply iterate over the dataset as shown in the examples above and write the `music` entry of each sample on your local filesystem as a MIDI file.
 
 ## Dataset Structure
 
 ### Data Instances
 
-A typical data sample comprises the `md5` of the file which corresponds to its file name, a `music` entry containing dictionary mapping to its absolute file `path` and `bytes` that can be loaded with `symusic` as `score = Score.from_midi(dataset[sample_idx]["music"]["bytes"])`.
+A typical data sample comprises the `md5` of the file which corresponds to its file name, a `music` entry containing bytes that can be loaded with `symusic` as `score = Score.from_midi(dataset[sample_idx]["music"])`.
 Metadata accompanies each file, which is introduced in the next section.
 
-A data sample indexed from the dataset may look like this (the `bytes` entry is voluntarily shorten):
+A data sample indexed from the dataset may look like this (the `music` entry is voluntarily shorten):
 
 ```python
 {
     'md5': '0211bbf6adf0cf10d42117e5929929a4',
-    'music': {'path': '/Users/nathan/.cache/huggingface/datasets/downloads/extracted/cc8e36bbe8d5ec7ecf1160714d38de3f2f670c13bc83e0289b2f1803f80d2970/0211bbf6adf0cf10d42117e5929929a4.mid', 'bytes': b"MThd\x00\x00\x00\x06\x00\x01\x00\x05\x01\x00MTrk\x00"},
+    'music': b"MThd\x00\x00\x00\x06\x00\x01\x00\x05\x01\x00MTrk\x00",
     'is_drums': False,
     'sid_matches': {'sid': ['065TU5v0uWSQmnTlP5Cnsz', '29OG7JWrnT0G19tOXwk664', '2lL9TiCxUt7YpwJwruyNGh'], 'score': [0.711, 0.8076, 0.8315]},
     'mbid_matches': {'sid': ['065TU5v0uWSQmnTlP5Cnsz', '29OG7JWrnT0G19tOXwk664', '2lL9TiCxUt7YpwJwruyNGh'], 'mbids': [['43d521a9-54b0-416a-b15e-08ad54982e63', '70645f54-a13d-4123-bf49-c73d8c961db8', 'f46bba68-588f-49e7-bb4d-e321396b0d8e'], ['43d521a9-54b0-416a-b15e-08ad54982e63', '70645f54-a13d-4123-bf49-c73d8c961db8'], ['3a4678e6-9d8f-4379-aa99-78c19caf1ff5']]},
@@ -222,8 +222,8 @@ A data sample indexed from the dataset may look like this (the `bytes` entry is 
 
 The GigaMIDI dataset comprises the [MetaMIDI dataset](https://www.metacreation.net/projects/metamidi-dataset). Consequently, the GigaMIDI dataset also contains its [metadata](https://github.com/jeffreyjohnens/MetaMIDIDataset) which we compiled here in a convenient and easy to use dataset format. The fields of each data entry are:
 
-* `md5` (`string`): hash the MIDI file, corresponding to its file name;
-* `music` (`dict`): a dictionary containing the absolute `path` to the downloaded file and the file content as `bytes` to be loaded with an external Python package such as symusic;
+* `md5` (`string`): hash the MIDI file, corresponding to its original file name;
+* `music` (`bytes`): bytes of the MIDI file to be loaded with an external Python package such as symusic;
 * `is_drums` (`boolean`): whether the sample comes from the `drums` subset, this can be useful when working with the `all` subset;
 * `sid_matches` (`dict[str, list[str] | list[float16]]`): ids of the Spotify entries matched and their scores.
 * `mbid_matches` (`dict[str, str | list[str]]`): ids of the MusicBrainz entries matched with the Spotify entries.

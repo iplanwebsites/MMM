@@ -152,10 +152,7 @@ class GigaMIDI(datasets.GeneratorBasedBuilder):
         features = datasets.Features(
             {
                 "md5": datasets.Value("string"),
-                "music": {
-                    "path": datasets.Value("string"),
-                    "bytes": datasets.Value("binary"),
-                },
+                "music": datasets.Value("binary"),
                 "is_drums": datasets.Value("bool"),
                 **_METADATA_FEATURES,
             }
@@ -250,23 +247,16 @@ class GigaMIDI(datasets.GeneratorBasedBuilder):
             with Path(metadata_paths[subset]).open() as file:
                 metadata = json.load(file)
 
-            for music_shard, local_extracted_shard_path in zip(
-                music_shards[subset], local_extracted_shards_paths[subset]
-            ):
+            for music_shard in music_shards[subset]:
                 for music_file_name, music_file in music_shard:
                     md5 = music_file_name.split(".")[0]
-                    path = (
-                        str(Path(str(local_extracted_shard_path)) / music_file_name)
-                        if local_extracted_shard_path
-                        else music_file_name
-                    )
 
                     metadata_ = metadata.get(md5, {})
                     yield (
                         md5,
                         {
                             "md5": md5,
-                            "music": {"path": path, "bytes": music_file.read()},
+                            "music": music_file.read(),
                             "is_drums": is_drums,
                             "sid_matches": [
                                 {"sid": sid, "score": score}
