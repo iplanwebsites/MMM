@@ -8,7 +8,6 @@ import json
 from typing import TYPE_CHECKING
 
 from datasets import Dataset
-from huggingface_hub import create_branch, upload_file
 from miditok.constants import SCORE_LOADING_EXCEPTION
 from symusic import Score
 from symusic.core import TextMetaSecond
@@ -19,8 +18,6 @@ from scripts.utils.GigaMIDI.GigaMIDI import _SPLITS
 
 if TYPE_CHECKING:
     from pathlib import Path
-
-    from datasets import DatasetDict
 
 
 MAX_NUM_ENTRIES_PER_SHARD = 50000
@@ -224,40 +221,10 @@ def load_dataset_from_generator(
     return Dataset.from_dict({"music": [str(path_) for path_ in files_paths]})
 
 
-def convert_to_parquet(
-    dataset: DatasetDict, repo_id: str, token: str | None = None
-) -> None:
-    """
-    Convert a dataset to parquet files.
-
-    :param dataset: dataset to convert.
-    :param repo_id: id of the repo to upload the files.
-    :param token: token for authentication.
-    """
-    create_branch(
-        repo_id,
-        branch="refs/convert/parquet",
-        revision="main",
-        token=token,
-        repo_type="dataset",
-    )
-    files_to_push = []
-    for split, subset in dataset.items():
-        file_path = f"{split}.parquet"
-        subset.to_parquet(file_path)
-        upload_file(
-            path_or_fileobj=file_path,
-            path_in_repo=file_path,
-            repo_id=repo_id,
-            token=token,
-            revision="refs/convert/parquet",
-            repo_type="dataset",
-        )
-        files_to_push.append(file_path)
-
-
 if __name__ == "__main__":
     from argparse import ArgumentParser
+
+    from datasets import load_dataset
 
     from scripts.utils.utils import path_data_directory_local_fs
 
@@ -268,12 +235,24 @@ if __name__ == "__main__":
     parser.add_argument("--hf-token", type=str, required=False, default=None)
     args = vars(parser.parse_args())
 
+    # Load all the raw data (MIDI files, csv and json metadata)
     create_webdataset_gigamidi(path_data_directory_local_fs())
 
-    """dataset_ = load_dataset(
-        args["hf_repo_name"], "music", token=args["hf_token"], trust_remote_code=True
-    )
-    convert_to_parquet(dataset_, args["hf_repo_name"], token=args["hf_token"])"""
+    # Convert the webdataset into parquet
+    for subset_name in SUBSET_PATHS:
+        dataset_ = load_dataset(
+            str(path_data_directory_local_fs() / "GigaMIDI"),
+            subset_name,
+        )
+        for split, subset in dataset_.items():
+            subset.to_parquet(
+                path_data_directory_local_fs()
+                / "GigaMIDI"
+                / "parquet"
+                / subset_name
+                / f"{split}.parquet"
+            )
+
     """from datasets import load_dataset
 
     dataset_ = load_dataset(
@@ -293,3 +272,17 @@ if __name__ == "__main__":
 
     score = Score.from_midi(test["music"]["bytes"])
     t = 0"""
+
+    """
+    import requests
+
+    headers = {"Authorization": f"Bearer {args['hf_token']}"}
+    API_URL = "https://datasets-server.huggingface.co/is-valid?dataset=Metacreation/GigaMIDI"
+
+
+    def query():
+        response = requests.get(API_URL, headers=headers)
+        return response.json()
+
+
+    data = query()"""
