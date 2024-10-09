@@ -177,7 +177,8 @@ A data sample indexed from the dataset may look like this (the `bytes` entry is 
     'genres_discogs': {'genre': ['classical', 'classical---baroque'], 'count': [14, 1]},
     'genres_tagtraum': {'genre': ['classical', 'classical---baroque'], 'count': [1, 1]},
     'genres_lastfm': {'genre': [], 'count': []},
-    'median_metric_depth': [0, 0, 0, 0]
+    'median_metric_depth': [0, 0, 0, 0],
+    'loops': {'end_tick': [15488, 33920, 33152, 12416, 41600, 32384, 8576], 'start_tick': [13952, 27776, 25472, 10880, 33920, 30848, 6272], 'track_idx': [0, 0, 0, 1, 1, 1, 1]},
 }
 ```
 
@@ -197,7 +198,7 @@ The GigaMIDI dataset comprises the [MetaMIDI dataset](https://www.metacreation.n
 * `genres_tagtraum` (`dict[str, list[str] | list[int16]]`): Tagtraum genres matched from the [AcousticBrainz dataset](https://multimediaeval.github.io/2018-AcousticBrainz-Genre-Task/data/);
 * `genres_lastfm` (`dict[str, list[str] | list[int16]]`): Lastfm genres matched from the [AcousticBrainz dataset](https://multimediaeval.github.io/2018-AcousticBrainz-Genre-Task/data/);
 * `median_metric_depth` (`list[int16]`):
-<!--* `loop` (`string`): -->
+* `loops` (`list[tuple[int8, int16, int16]]`): loops detected within the file, provided as a list of tuples with values corresponding to `(track_index, start_tick, end_tick)`
 
 ### Data Splits
 

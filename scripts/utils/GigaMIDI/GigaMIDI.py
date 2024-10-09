@@ -49,7 +49,13 @@ _METADATA_FEATURES = {
         {"genre": datasets.Value("string"), "count": datasets.Value("int16")}
     ),
     "median_metric_depth": datasets.Sequence(datasets.Value("int16")),
-    # "loops": datasets.Value("string"),
+    "loops": datasets.Sequence(
+        {
+            "track_idx": datasets.Value("uint16"),
+            "start_tick": datasets.Value("uint32"),
+            "end_tick": datasets.Value("uint32"),
+        }
+    ),
 }
 _VERSION = "1.0.0"
 
@@ -294,6 +300,15 @@ class GigaMIDI(datasets.GeneratorBasedBuilder):
                             "median_metric_depth": metadata_.get(
                                 "median_metric_depth", None
                             ),
-                            # "loops": metadata_.get("loops", None),
+                            "loops": [
+                                {
+                                    "track_idx": track_idx,
+                                    "start_tick": start_tick,
+                                    "end_tick": end_tick,
+                                }
+                                for track_idx, start_tick, end_tick in metadata_.get(
+                                    "loops", []
+                                )
+                            ],
                         },
                     )

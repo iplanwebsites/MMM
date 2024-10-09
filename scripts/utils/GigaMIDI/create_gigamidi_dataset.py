@@ -9,6 +9,9 @@ from typing import TYPE_CHECKING
 
 from datasets import Dataset
 from huggingface_hub import create_branch, upload_file
+from miditok.constants import SCORE_LOADING_EXCEPTION
+from symusic import Score
+from symusic.core import TextMetaSecond
 from tqdm import tqdm
 from webdataset import ShardWriter
 
@@ -90,11 +93,11 @@ def create_webdataset_gigamidi(main_data_dir_path: Path) -> None:
             if md5 not in md5_expressive:
                 md5_expressive[md5] = []
             md5_expressive[md5].append(int(parts[5]))
-    """md5_loop = {}
+    md5_loop = {}
     with (
         dataset_path
         / "GigaMIDI-combined-non-expressive-loop-data"
-        / "Expressive_Performance_Detection_NOMML_gigamidi_tismir.csv"
+        / "GigaMIDI-combined-non-expressive-loop-dataset.csv"
     ).open() as file:
         file.seek(0)
         next(file)  # skipping first row (header)
@@ -102,11 +105,8 @@ def create_webdataset_gigamidi(main_data_dir_path: Path) -> None:
             parts = row.split(",")
             md5 = parts[0].split("/")[-1].split(".")[0]
             if md5 not in md5_loop:
-                md5_loop[md5] = {}
-            track_idx = parts[1]
-            if track_idx not in md5_loop[md5]:
-                md5_loop[md5][track_idx] = []
-            md5_loop[md5][track_idx].append(int(parts[5]))"""
+                md5_loop[md5] = []
+            md5_loop[md5].append((parts[1], *parts[4:6]))
 
     # Sharding the data into tar archives
     num_shards = {}
@@ -157,7 +157,40 @@ def create_webdataset_gigamidi(main_data_dir_path: Path) -> None:
                     interpreted_scores = md5_expressive.get(md5)
                     if interpreted_scores:
                         metadata_row["median_metric_depth"] = interpreted_scores
-                    # TODO loops
+                    loops = md5_loop.get(md5)
+                    if loops:
+                        try:
+                            score = Score(file_path, ttype="second")
+                        except SCORE_LOADING_EXCEPTION:
+                            continue  # no loops saved for corrupted files
+                        score.markers = []  # delete all existing ones for simplicity
+                        for track_id, start_sec, end_sec in loops:
+                            score.markers.append(
+                                TextMetaSecond(
+                                    float(start_sec), f"#LOOP_{int(track_id)}_on"
+                                )
+                            )
+                            score.markers.append(
+                                TextMetaSecond(
+                                    float(end_sec), f"#LOOP_{int(track_id)}_off"
+                                )
+                            )
+                        score = score.to(ttype="tick")
+                        loops_ticks = []
+                        loops_on = {}  # {track_id: start_tick}
+                        for marker in score.markers:
+                            _, track_id, state = marker.text.split("_")
+                            if state == "on":
+                                loops_on[int(track_id)] = marker.time
+                            else:
+                                loops_ticks.append(
+                                    (
+                                        int(track_id),
+                                        loops_on.pop(int(track_id)),
+                                        marker.time,
+                                    )
+                                )
+                        metadata_row["loops"] = loops_ticks
                     if len(metadata_row) > 0:
                         metadata[md5] = metadata_row
 

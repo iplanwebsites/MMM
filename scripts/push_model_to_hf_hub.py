@@ -23,7 +23,7 @@ if __name__ == "__main__":
     from huggingface_hub import repo_exists, upload_folder
     from transformers.trainer_utils import get_last_checkpoint
 
-    from scripts.utils.baselines import baselines
+    from .utils.baselines import baselines
 
     # Parse arguments for training params / model size
     parser = ArgumentParser(description="Model training script")
