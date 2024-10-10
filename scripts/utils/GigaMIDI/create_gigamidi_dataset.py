@@ -254,25 +254,23 @@ if __name__ == "__main__":
 
     """from datasets import load_dataset
 
+    # dataset_ = load_dataset(
+    #    str(path_data_directory_local_fs() / "GigaMIDI"),
+    #    "no-drums",
+    #    subsets=["no-drums", "all-instruments-with-drums"],
+    #    trust_remote_code=True,
+    # )
     dataset_ = load_dataset(
-        str(path_data_directory_local_fs() / "GigaMIDI"),
+        args["hf_repo_name"],
         "no-drums",
-        subsets=["no-drums", "all-instruments-with-drums"],
-        trust_remote_code=True,
+        token=args["hf_token"],
     )
     data = dataset_["train"]
     for i in range(7):
-        t = data[i]
+        sample = data[i]
+        score = Score.from_midi(sample["music"])
         f = 0
 
-    test = data[0]
-    print(test)
-    from symusic import Score
-
-    score = Score.from_midi(test["music"]["bytes"])
-    t = 0"""
-
-    """
     import requests
 
     headers = {"Authorization": f"Bearer {args['hf_token']}"}
@@ -284,4 +282,5 @@ if __name__ == "__main__":
         return response.json()
 
 
-    data = query()"""
+    data = query()
+    t = 0"""

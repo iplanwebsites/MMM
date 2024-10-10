@@ -90,15 +90,7 @@ The `datasets` library allows you to load and pre-process your dataset in pure P
 ```python
 from datasets import load_dataset
 
-dataset = load_dataset("Metacreation/GigaMIDI", "all-instruments-with-drums", trust_remote_code=True)
-```
-
-You can load combinations of specific subsets by using the `subset` keyword argument when loading the dataset:
-
-```Python
-from datasets import load_dataset
-
-dataset = load_dataset("Metacreation/GigaMIDI", "music", subsets=["no-drums", "all-instruments-with-drums"], trust_remote_code=True)
+dataset = load_dataset("Metacreation/GigaMIDI", "all-instruments-with-drums")
 ```
 
 Using the datasets library, you can also stream the dataset on-the-fly by adding a `streaming=True` argument to the `load_dataset` function call. Loading a dataset in streaming mode loads individual samples of the dataset at a time, rather than downloading the entire dataset to disk.
@@ -107,7 +99,7 @@ Using the datasets library, you can also stream the dataset on-the-fly by adding
 from datasets import load_dataset
 
 dataset = load_dataset(
-    "Metacreation/GigaMIDI", "all-instruments-with-drums", trust_remote_code=True, streaming=True
+    "Metacreation/GigaMIDI", "all-instruments-with-drums", streaming=True
 )
 
 print(next(iter(dataset)))
@@ -121,7 +113,7 @@ print(next(iter(dataset)))
 from datasets import load_dataset
 from torch.utils.data.sampler import BatchSampler, RandomSampler
 
-dataset = load_dataset("Metacreation/GigaMIDI", "all-instruments-with-drums", trust_remote_code=True, split="train")
+dataset = load_dataset("Metacreation/GigaMIDI", "all-instruments-with-drums", split="train")
 batch_sampler = BatchSampler(RandomSampler(dataset), batch_size=32, drop_last=False)
 dataloader = DataLoader(dataset, batch_sampler=batch_sampler)
 ```
@@ -132,7 +124,7 @@ dataloader = DataLoader(dataset, batch_sampler=batch_sampler)
 from datasets import load_dataset
 from torch.utils.data import DataLoader
 
-dataset = load_dataset("Metacreation/GigaMIDI", "all-instruments-with-drums", trust_remote_code=True, split="train")
+dataset = load_dataset("Metacreation/GigaMIDI", "all-instruments-with-drums", split="train")
 dataloader = DataLoader(dataset, batch_size=32)
 ```
 
@@ -142,8 +134,14 @@ MIDI files can be easily loaded and tokenized with [Symusic](https://github.com/
 
 ```python
 from datasets import load_dataset
+from miditok import REMI
+from symusic import Score
 
-dataset = load_dataset("Metacreation/GigaMIDI", "all-instruments-with-drums", trust_remote_code=True, split="train")
+dataset = load_dataset("Metacreation/GigaMIDI", "all-instruments-with-drums", split="train")
+tokenizer = REMI()
+for sample in dataset:
+    score = Score.from_midi(sample["music"])
+    tokens = tokenizer(score)
 ```
 
 The dataset can be [processed](https://huggingface.co/docs/datasets/process) by using the `dataset.map` and  `dataset.filter` methods.
@@ -181,7 +179,7 @@ def is_score_valid(
         len(get_bars_ticks(score)) >= min_num_bars and score.note_num() > min_num_notes
     )
 
-dataset = load_dataset("Metacreation/GigaMIDI", "all-instruments-with-drums", trust_remote_code=True, split="train")
+dataset = load_dataset("Metacreation/GigaMIDI", "all-instruments-with-drums", split="train")
 dataset = dataset.filter(
     lambda ex: is_score_valid(ex["music"], min_num_bars=8, min_num_notes=50)
 )
@@ -251,10 +249,6 @@ The validation and test splits contain each 10% of the dataset, while the traini
 ### Source Data
 
 #### Initial Data Collection and Normalization
-
-[Needs More Information]
-
-#### Who are the source language producers?
 
 [Needs More Information]
 
