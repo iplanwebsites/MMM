@@ -58,6 +58,10 @@ tests = [
     "pytest-cov",
     "pytest-xdist[psutil]",
 ]
+docs = [
+    "furo",  # theme
+    "sphinx-copybutton",
+]
 
 [project.urls]
 Homepage = "https://github.com/Metacreation-Lab/MMM"
