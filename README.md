@@ -95,3 +95,11 @@ python scripts/train_model.py
 3. Split the dataset in train/valid/test subsets;
 4. Split each file into chunks that make approximately 2048 tokens;
 5. Augment each chunk on up/down to +-6 pitch intervals and -+2 velocities;
+
+## Documentation
+
+The documentation can be built with sphinx. You will need to install the required Python packages referenced in the [project file](pyproject.toml) under the "docs" category. Then run the command:
+
+```bash
+sphinx-build -M html docs docs/public
+```
