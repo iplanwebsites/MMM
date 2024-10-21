@@ -2,3 +2,4 @@
 /tests/tests_output
 /models
 .idea
+__pycache__
