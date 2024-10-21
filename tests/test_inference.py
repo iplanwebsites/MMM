@@ -8,22 +8,22 @@ from pathlib import Path
 
 import pytest
 from miditok import MMM
-from transformers import MistralForCausalLM, GenerationConfig
+from transformers import GenerationConfig, MistralForCausalLM
 
-from mmm import InferenceConfig, generate, StopLogitsProcessor
-
-from .utils_tests import MIDI_PATHS, MIDI_PATH
-
+from mmm import InferenceConfig, StopLogitsProcessor, generate
 from scripts.utils.constants import (
-    NUM_BEAMS,
-    TEMPERATURE_SAMPLING,
-    REPETITION_PENALTY,
-    TOP_K,
-    TOP_P,
     EPSILON_CUTOFF,
     ETA_CUTOFF,
-    MAX_LENGTH
+    MAX_LENGTH,
+    NUM_BEAMS,
+    REPETITION_PENALTY,
+    TEMPERATURE_SAMPLING,
+    TOP_K,
+    TOP_P,
 )
+
+from .utils_tests import MIDI_PATH
+
 INFERENCE_CONFIG = InferenceConfig(
     {
         #0: [(14, 18, []), (30, 34, [])],
@@ -46,9 +46,11 @@ INFERENCE_CONFIG = InferenceConfig(
 def test_generate(
     tokenizer: MMM, inference_config: InferenceConfig, input_midi_path: str | Path
 ):
-    model = MistralForCausalLM.from_pretrained(Path(__file__).parent.parent / "models" / "checkpoint-33000",
+    model = MistralForCausalLM.from_pretrained(Path(__file__).parent.parent
+                                               / "models" / "checkpoint-33000",
                                                use_safetensors=True)
-    logits_processor = StopLogitsProcessor(tokenizer.vocab["Bar_None"], tokenizer.vocab["FillBar_End"], tokenizer)
+    logits_processor = StopLogitsProcessor(tokenizer.vocab["Bar_None"],
+                                           tokenizer.vocab["FillBar_End"], tokenizer)
 
     gen_config = GenerationConfig(
         num_beams=NUM_BEAMS,
@@ -75,5 +77,6 @@ def test_generate(
     t = time.localtime()
     filename = os.path.splitext(os.path.basename(input_midi_path))[0]
     _.dump_midi(
-        Path(__file__).parent / "tests_output" / "33kT12" / f"{filename}{t.tm_min}{t.tm_sec}.mid"
+        Path(__file__).parent / "tests_output" / "33kT12" /
+        f"{filename}{t.tm_min}{t.tm_sec}.mid"
     )

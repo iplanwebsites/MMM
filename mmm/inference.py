@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import time
 import warnings
 from typing import TYPE_CHECKING
 
@@ -10,14 +9,14 @@ import numpy as np
 from miditok import MMM, TokSequence
 from symusic import Score
 from torch import LongTensor
-from transformers import LogitsProcessor, LogitsProcessorList
-
+from transformers import LogitsProcessorList
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
     from pathlib import Path
-    from .logits_processor import StopLogitsProcessor
+
     from .config import InferenceConfig
+    from .logits_processor import StopLogitsProcessor
 
 
 def generate(
@@ -37,8 +36,8 @@ def generate(
     :param tokenizer: MMM tokenizer
     :param inference_config: InferenceConfig
     :param score_or_path: ``symusic.Score`` or path of the music file to infill.
-    :param logits_processor: ``transformers.LogitsProcessor`` used to stop generation when the right number
-        of bars is generated.
+    :param logits_processor: ``transformers.LogitsProcessor`` used to stop generation
+        when the right number of bars is generated.
     :param generate_kwargs: keyword arguments to provide to the ``model.generate``
         method. For Hugging Face models for example, you can provide a
         ``GenerationConfig`` using this argument.
@@ -144,8 +143,8 @@ def generate_infilling(
     :param tokenizer: MMM tokenizer
     :param score: ``symusic.Score`` to generate a new track from.
     :param inference_config: InferenceConfig
-    :param logits_processor: ``transformers.LogitsProcessor`` used to stop generation when the right number
-        of bars is generated.
+    :param logits_processor: ``transformers.LogitsProcessor`` used to stop
+        generation when the right number of bars is generated.
     :param generate_kwargs: keyword arguments to provide to the ``model.generate``
         method. For Hugging Face models for example, you can provide a
         ``GenerationConfig`` using this argument.
@@ -154,7 +153,8 @@ def generate_infilling(
     if not generate_kwargs:
         generate_kwargs = {}
     else:
-        generate_kwargs["generation_config"].eos_token_id = tokenizer.vocab["FillBar_End"]
+        generate_kwargs["generation_config"].eos_token_id \
+            = tokenizer.vocab["FillBar_End"]
 
     tracks_to_infill = inference_config.bars_to_generate.keys()
     input_tokens = tokenizer.encode(score, concatenate_track_sequences=False)
@@ -194,8 +194,8 @@ def infill_bars(
     :param inference_config: contains information about which tracks and bars to
         generate.
     :param tokens: TokSequence of the track to be infilled
-    :param logits_processor: ``transformers.LogitsProcessor`` used to stop generation when the right number
-        of bars is generated.
+    :param logits_processor: ``transformers.LogitsProcessor`` used to stop generation
+        when the right number of bars is generated.
     :param generate_kwargs: keyword arguments to provide to the ``model.generate``
         method. For Hugging Face models for example, you can provide a
         ``GenerationConfig`` using this argument.
@@ -211,20 +211,23 @@ def infill_bars(
             tokenizer, track_idx, tokens, subset_bars_to_infill
         )
 
-        logits_processor.n_bars_to_infill = subset_bars_to_infill[1] - subset_bars_to_infill[0]
+        logits_processor.n_bars_to_infill = (subset_bars_to_infill[1]
+                                             - subset_bars_to_infill[0])
         logits_processor.n_attribute_controls = len(subset_bars_to_infill[2])
         logit_processor_list = LogitsProcessorList()
         logit_processor_list.append(logits_processor)
 
-        start_time = time.time()
+        #start_time = time.time()
 
-        output_ids = model.generate(LongTensor([input_seq.ids]), logits_processor=logit_processor_list ,**generate_kwargs)[
+        output_ids = model.generate(LongTensor([input_seq.ids]),
+                                    logits_processor=logit_processor_list ,
+                                    **generate_kwargs)[
             0
         ].numpy()
 
-        end_time = time.time()
-        print("Generation time: ", end_time-start_time)
-        print("Time spent in logits processor ", logits_processor.total_time)
+        #end_time = time.time()
+        #print("Generation time: ", end_time-start_time)
+        #print("Time spent in logits processor ", logits_processor.total_time)
 
 
         fill_start_idx = np.where(output_ids == tokenizer.vocab["FillBar_Start"])[0][0]
@@ -232,16 +235,20 @@ def infill_bars(
 
         track_start_idxs = np.where(output_ids == tokenizer.vocab["Track_Start"])[0]
 
-        # Here we isolate the generated tokens doing some filtering. In particular, the model may generate some tokens
-        # before the first Bar_None token
+        # Here we isolate the generated tokens doing some filtering. In particular,
+        # the model may generate some tokens before the first Bar_None token
         generated_tokens = TokSequence(are_ids_encoded=True)
-        generated_tokens.ids = output_ids[fill_start_idx+len(subset_bars_to_infill[2])+1:-1].tolist()
+        generated_tokens.ids = (output_ids[fill_start_idx+
+                                          len(subset_bars_to_infill[2])+1:-1]
+                                .tolist())
         # decode_token_ids doesn't support numpy arrays for ids list
         tokenizer.decode_token_ids(generated_tokens)
-        bar_none_token_idxs = np.where(np.array(generated_tokens.ids) == tokenizer.vocab["Bar_None"])[0]
-        # bar_none_token_idxs[-1] because we must exclude the last BarNone token, which is used by the
-        # logits processor to stop generation
-        generated_tokens.ids = generated_tokens.ids[bar_none_token_idxs[0]:bar_none_token_idxs[-1]]
+        bar_none_token_idxs = np.where(np.array(generated_tokens.ids)
+                                       == tokenizer.vocab["Bar_None"])[0]
+        # bar_none_token_idxs[-1] because we must exclude the last BarNone token,
+        # which is used by the logits processor to stop generation
+        generated_tokens.ids = generated_tokens.ids[bar_none_token_idxs[0]
+                                                    :bar_none_token_idxs[-1]]
 
         replacing_tokens = TokSequence(are_ids_encoded=True)
 
