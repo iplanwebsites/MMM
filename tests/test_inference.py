@@ -26,14 +26,15 @@ from scripts.utils.constants import (
 )
 INFERENCE_CONFIG = InferenceConfig(
     {
-        0: [(1, 2, ["ACBarNoteDensity_6", "ACBarNoteDurationEight_1"])],
+        #0: [(14, 18, []), (30, 34, [])],
+        #0: [(14, 18, [])],
+        #1: [(40, 44, [])],
         # 2: [(4, 8, ["ACBarNoteDensity_6", "ACBarNoteDurationEight_1"])],
         # 3: [(4, 8, ["ACBarNoteDensity_6", "ACBarNoteDurationEight_1"])],
     },
-    []
-    #[
-    #    (43, ["ACTrackOnsetPolyphonyMax_2", "ACTrackNoteDensityMin_8"]),
-    #],
+    [
+        (43, []),
+    ],
 )
 
 
@@ -41,11 +42,11 @@ INFERENCE_CONFIG = InferenceConfig(
     "tokenizer", [MMM(params=Path(__file__).parent.parent / "runs" / "tokenizer.json")]
 )
 @pytest.mark.parametrize("inference_config", [INFERENCE_CONFIG])
-@pytest.mark.parametrize("input_midi_path", MIDI_PATHS)
+@pytest.mark.parametrize("input_midi_path", MIDI_PATH)
 def test_generate(
     tokenizer: MMM, inference_config: InferenceConfig, input_midi_path: str | Path
 ):
-    model = MistralForCausalLM.from_pretrained(Path(__file__).parent.parent / "models" / "checkpoint-15000",
+    model = MistralForCausalLM.from_pretrained(Path(__file__).parent.parent / "models" / "checkpoint-33000",
                                                use_safetensors=True)
     logits_processor = StopLogitsProcessor(tokenizer.vocab["Bar_None"], tokenizer.vocab["FillBar_End"], tokenizer)
 
@@ -74,8 +75,5 @@ def test_generate(
     t = time.localtime()
     filename = os.path.splitext(os.path.basename(input_midi_path))[0]
     _.dump_midi(
-        Path(__file__).parent / "tests_output" / f"{filename}{t.tm_min}{t.tm_sec}.mid"
+        Path(__file__).parent / "tests_output" / "33kT12" / f"{filename}{t.tm_min}{t.tm_sec}.mid"
     )
-    """output_score.dump_midi(
-        Path(__file__).parent / "tests_output" / "midi_out_bpe_dummy.mid"
-    )"""

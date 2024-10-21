@@ -230,35 +230,36 @@ def infill_bars(
         fill_start_idx = np.where(output_ids == tokenizer.vocab["FillBar_Start"])[0][0]
         infill_bar_idxs = np.where(output_ids == tokenizer.vocab["Infill_Bar"])[0]
 
+        track_start_idxs = np.where(output_ids == tokenizer.vocab["Track_Start"])[0]
+
         # Here we isolate the generated tokens doing some filtering. In particular, the model may generate some tokens
         # before the first Bar_None token
         generated_tokens = TokSequence(are_ids_encoded=True)
-        generated_tokens.ids = output_ids[fill_start_idx+len(subset_bars_to_infill[2])+1:len(output_ids)-1].tolist()
+        generated_tokens.ids = output_ids[fill_start_idx+len(subset_bars_to_infill[2])+1:-1].tolist()
         # decode_token_ids doesn't support numpy arrays for ids list
         tokenizer.decode_token_ids(generated_tokens)
-        bar_none_token_idx = np.where(np.array(generated_tokens.ids) == tokenizer.vocab["Bar_None"])[0]
-        if len(bar_none_token_idx) > 0:
-            bar_none_token_idx = bar_none_token_idx[-logits_processor.n_bars_to_infill]
-            generated_tokens.ids = generated_tokens.ids[bar_none_token_idx:]
-            generated_tokens.tokens = generated_tokens.tokens[bar_none_token_idx:]
-        else:
-            generated_tokens.ids = np.insert(np.array(generated_tokens.ids), 0, tokenizer.vocab["Bar_None"]).tolist()
-
+        bar_none_token_idxs = np.where(np.array(generated_tokens.ids) == tokenizer.vocab["Bar_None"])[0]
+        # bar_none_token_idxs[-1] because we must exclude the last BarNone token, which is used by the
+        # logits processor to stop generation
+        generated_tokens.ids = generated_tokens.ids[bar_none_token_idxs[0]:bar_none_token_idxs[-1]]
 
         replacing_tokens = TokSequence(are_ids_encoded=True)
 
         # subset_bars_to_infill[2] is the list of attribute controls
         replacing_tokens.ids = np.append(
-            output_ids[: infill_bar_idxs[0]],
-            #output_ids[
-            #    fill_start_idx + 1 + len(subset_bars_to_infill[2]) : fill_end_idx
-            #],
+            output_ids[track_start_idxs[track_idx]: infill_bar_idxs[0]],
             generated_tokens.ids
         ).tolist()
-        replacing_tokens.ids = np.append(
-            replacing_tokens.ids,
-            output_ids[infill_bar_idxs[-1] + 1 : fill_start_idx],
-        ).tolist()
+        if track_idx == len(tokens) - 1:
+            replacing_tokens.ids = np.append(
+                replacing_tokens.ids,
+                output_ids[infill_bar_idxs[-1] + 1 : fill_start_idx],
+            ).tolist()
+        else:
+            replacing_tokens.ids = np.append(
+                replacing_tokens.ids,
+                output_ids[infill_bar_idxs[-1] + 1: track_start_idxs[track_idx + 1]],
+            ).tolist()
 
         # Decode BPE ids before getting the associated tokens
         tokenizer.decode_token_ids(replacing_tokens)
@@ -289,7 +290,7 @@ def _adapt_prompt_for_bar_infilling(
     :param subset_bars_to_infill: contains the indexes of the first and last bar to
         infill, plus a list of attribute controls
     """
-    output_toksequence: TokSequence = TokSequence()
+    toksequence_to_infill: TokSequence = TokSequence(are_ids_encoded=False)
 
     start_bar_idx = subset_bars_to_infill[0]
     end_bar_idx = subset_bars_to_infill[1]
@@ -315,10 +316,17 @@ def _adapt_prompt_for_bar_infilling(
         seq_before.ids.append(tokenizer.vocab["Infill_Bar"])
         seq_before.tokens.append("Infill_Bar")
     seq_after = tokens[track_idx][token_idx_end:]
-    output_toksequence += seq_before + seq_after
+    toksequence_to_infill += seq_before + seq_after
 
     # Encode into BPE tokens
-    tokenizer.encode_token_ids(output_toksequence)
+    tokenizer.encode_token_ids(toksequence_to_infill)
+
+    output_toksequence = TokSequence(are_ids_encoded=True)
+    for i in range(len(tokens)):
+        if i == track_idx:
+            output_toksequence += toksequence_to_infill
+            continue
+        output_toksequence += tokens[i]
 
     output_toksequence.ids.append(tokenizer.vocab["FillBar_Start"])
     output_toksequence.tokens.append("FillBar_Start")

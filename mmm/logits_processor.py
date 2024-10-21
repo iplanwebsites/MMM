@@ -43,10 +43,14 @@ class StopLogitsProcessor(LogitsProcessor):
             n_bar_none = len(np.where(np.array(generated_tokens.ids) == self.tokenizer.vocab["Bar_None"])[0])
 
         # If we reach the self.n_bars_to_infill + 1 BarStart token sampled, we have generated enough content
-        if n_bar_none >= self.n_bars_to_infill:
+        if n_bar_none > self.n_bars_to_infill:
             scores[:, :] = -999999.0  # Penalize all tokens
             # But enforce the sampling of EOS token to stop generation
             scores[:, self.eos_token_id] = 999999.0
+
+        # Don't sample an EOS token until all bars are generated
+        if n_bar_none <= self.n_bars_to_infill:
+            scores[:, self.eos_token_id] = -999999.0
 
         end_time = time.time()
         self.total_time += end_time - start_time
