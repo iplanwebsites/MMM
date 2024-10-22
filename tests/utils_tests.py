@@ -10,15 +10,16 @@ from torch import LongTensor
 
 HERE = Path(__file__).parent
 MIDI_PATHS = list((HERE / "midis").glob("**/*.mid"))
-MIDI_PATH = [HERE / "midis" / "I Gotta Feeling.mid",
-             #HERE / "midis" / "Funkytown.mid",
-             #HERE / "midis" / "Les Yeux Revolvers.mid",
-            #HERE / "midis" / "Girls Just Want to Have Fun.mid",
-            #HERE / "midis" / "What a Fool Believes.mid",
-             ]
+MIDI_PATH = [
+    HERE / "midis" / "I Gotta Feeling.mid",
+    # HERE / "midis" / "Funkytown.mid",
+    # HERE / "midis" / "Les Yeux Revolvers.mid",
+    # HERE / "midis" / "Girls Just Want to Have Fun.mid",
+    # HERE / "midis" / "What a Fool Believes.mid",
+]
 
-#Used to test limit cases
-#MIDI_PATH = HERE / "test_real_time" / "midis" / "4_bar.mid"
+# Used to test limit cases
+# MIDI_PATH = HERE / "test_real_time" / "midis" / "4_bar.mid"
 
 
 class DummyModel:

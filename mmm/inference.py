@@ -24,7 +24,7 @@ def generate(
     tokenizer: MMM,
     inference_config: InferenceConfig,
     score_or_path: Score | Path | str,
-    logits_processor : StopLogitsProcessor | None = None,
+    logits_processor: StopLogitsProcessor | None = None,
     generate_kwargs: Mapping | None = None,
 ) -> Score:
     """
@@ -129,7 +129,7 @@ def generate_infilling(
     tokenizer: MMM,
     inference_config: InferenceConfig,
     score: Score,
-    logits_processor : StopLogitsProcessor | None = None,
+    logits_processor: StopLogitsProcessor | None = None,
     generate_kwargs: Mapping | None = None,
 ) -> Score:
     """
@@ -153,8 +153,9 @@ def generate_infilling(
     if not generate_kwargs:
         generate_kwargs = {}
     else:
-        generate_kwargs["generation_config"].eos_token_id \
-            = tokenizer.vocab["FillBar_End"]
+        generate_kwargs["generation_config"].eos_token_id = tokenizer.vocab[
+            "FillBar_End"
+        ]
 
     tracks_to_infill = inference_config.bars_to_generate.keys()
     input_tokens = tokenizer.encode(score, concatenate_track_sequences=False)
@@ -180,7 +181,7 @@ def infill_bars(
     track_idx: int,
     inference_config: InferenceConfig,
     tokens: list[TokSequence],
-    logits_processor : StopLogitsProcessor | None = None,
+    logits_processor: StopLogitsProcessor | None = None,
     generate_kwargs: Mapping | None = None,
 ) -> None:
     """
@@ -211,24 +212,24 @@ def infill_bars(
             tokenizer, track_idx, tokens, subset_bars_to_infill
         )
 
-        logits_processor.n_bars_to_infill = (subset_bars_to_infill[1]
-                                             - subset_bars_to_infill[0])
+        logits_processor.n_bars_to_infill = (
+            subset_bars_to_infill[1] - subset_bars_to_infill[0]
+        )
         logits_processor.n_attribute_controls = len(subset_bars_to_infill[2])
         logit_processor_list = LogitsProcessorList()
         logit_processor_list.append(logits_processor)
 
-        #start_time = time.time()
+        # start_time = time.time()
 
-        output_ids = model.generate(LongTensor([input_seq.ids]),
-                                    logits_processor=logit_processor_list ,
-                                    **generate_kwargs)[
-            0
-        ].numpy()
+        output_ids = model.generate(
+            LongTensor([input_seq.ids]),
+            logits_processor=logit_processor_list,
+            **generate_kwargs,
+        )[0].numpy()
 
-        #end_time = time.time()
-        #print("Generation time: ", end_time-start_time)
-        #print("Time spent in logits processor ", logits_processor.total_time)
-
+        # end_time = time.time()
+        # print("Generation time: ", end_time-start_time)
+        # print("Time spent in logits processor ", logits_processor.total_time)
 
         fill_start_idx = np.where(output_ids == tokenizer.vocab["FillBar_Start"])[0][0]
         infill_bar_idxs = np.where(output_ids == tokenizer.vocab["Infill_Bar"])[0]
@@ -238,24 +239,26 @@ def infill_bars(
         # Here we isolate the generated tokens doing some filtering. In particular,
         # the model may generate some tokens before the first Bar_None token
         generated_tokens = TokSequence(are_ids_encoded=True)
-        generated_tokens.ids = (output_ids[fill_start_idx+
-                                          len(subset_bars_to_infill[2])+1:-1]
-                                .tolist())
+        generated_tokens.ids = output_ids[
+            fill_start_idx + len(subset_bars_to_infill[2]) + 1 : -1
+        ].tolist()
         # decode_token_ids doesn't support numpy arrays for ids list
         tokenizer.decode_token_ids(generated_tokens)
-        bar_none_token_idxs = np.where(np.array(generated_tokens.ids)
-                                       == tokenizer.vocab["Bar_None"])[0]
+        bar_none_token_idxs = np.where(
+            np.array(generated_tokens.ids) == tokenizer.vocab["Bar_None"]
+        )[0]
         # bar_none_token_idxs[-1] because we must exclude the last BarNone token,
         # which is used by the logits processor to stop generation
-        generated_tokens.ids = generated_tokens.ids[bar_none_token_idxs[0]
-                                                    :bar_none_token_idxs[-1]]
+        generated_tokens.ids = generated_tokens.ids[
+            bar_none_token_idxs[0] : bar_none_token_idxs[-1]
+        ]
 
         replacing_tokens = TokSequence(are_ids_encoded=True)
 
         # subset_bars_to_infill[2] is the list of attribute controls
         replacing_tokens.ids = np.append(
-            output_ids[track_start_idxs[track_idx]: infill_bar_idxs[0]],
-            generated_tokens.ids
+            output_ids[track_start_idxs[track_idx] : infill_bar_idxs[0]],
+            generated_tokens.ids,
         ).tolist()
         if track_idx == len(tokens) - 1:
             replacing_tokens.ids = np.append(
@@ -265,7 +268,7 @@ def infill_bars(
         else:
             replacing_tokens.ids = np.append(
                 replacing_tokens.ids,
-                output_ids[infill_bar_idxs[-1] + 1: track_start_idxs[track_idx + 1]],
+                output_ids[infill_bar_idxs[-1] + 1 : track_start_idxs[track_idx + 1]],
             ).tolist()
 
         # Decode BPE ids before getting the associated tokens

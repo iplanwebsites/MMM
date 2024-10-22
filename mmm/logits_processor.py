@@ -25,19 +25,23 @@ class StopLogitsProcessor(LogitsProcessor):
 
     n_bars_to_infill: int = 0  # This should change at every generation
     # step as we may need to infill a different number of bars at each step
-    n_attribute_controls: int = 0 # Number of attribute controls to skip
+    n_attribute_controls: int = 0  # Number of attribute controls to skip
     # when decoding using BPE
 
-
-    def __init__(self, bar_start_token_id: int, eos_token_id: int,
-                 tokenizer: miditok.MusicTokenizer) -> None:
+    def __init__(
+        self,
+        bar_start_token_id: int,
+        eos_token_id: int,
+        tokenizer: miditok.MusicTokenizer,
+    ) -> None:
         self.bar_start_token_id = bar_start_token_id
         self.eos_token_id = eos_token_id
         self.tokenizer = tokenizer
         self.total_time = 0
 
-    def __call__(self, input_ids: torch.LongTensor, scores: torch.FloatTensor) \
-            -> torch.FloatTensor:
+    def __call__(
+        self, input_ids: torch.LongTensor, scores: torch.FloatTensor
+    ) -> torch.FloatTensor:
         """
         To handle proper infilling generation content.
 
@@ -53,18 +57,22 @@ class StopLogitsProcessor(LogitsProcessor):
 
         generated_tokens = TokSequence(are_ids_encoded=True)
 
-        fill_start_idx = np.where(input_ids[0].numpy() ==
-                                  self.tokenizer.vocab["FillBar_Start"])[0][0]
+        fill_start_idx = np.where(
+            input_ids[0].numpy() == self.tokenizer.vocab["FillBar_Start"]
+        )[0][0]
 
         n_bar_none = 0
         if fill_start_idx + self.n_attribute_controls + 1 < len(input_ids[0]):
-            generated_tokens.ids = (input_ids[0][fill_start_idx +
-                                                self.n_attribute_controls + 1 :]
-                                    .tolist())
+            generated_tokens.ids = input_ids[0][
+                fill_start_idx + self.n_attribute_controls + 1 :
+            ].tolist()
             self.tokenizer.decode_token_ids(generated_tokens)
 
-            n_bar_none = len(np.where(np.array(generated_tokens.ids) ==
-                                      self.tokenizer.vocab["Bar_None"])[0])
+            n_bar_none = len(
+                np.where(
+                    np.array(generated_tokens.ids) == self.tokenizer.vocab["Bar_None"]
+                )[0]
+            )
 
         # If we reach the self.n_bars_to_infill + 1 BarStart token sampled,
         # we have generated enough content

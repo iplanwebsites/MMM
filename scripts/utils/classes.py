@@ -54,6 +54,7 @@ class TokenizationConfig:
     tokenizer_config: miditok.TokenizerConfig
     vocab_size: int = None
 
+
 @dataclass
 class Baseline(ABC):
     """
