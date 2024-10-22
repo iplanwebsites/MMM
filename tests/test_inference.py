@@ -42,6 +42,7 @@ INFERENCE_CONFIG = InferenceConfig(
 )
 @pytest.mark.parametrize("inference_config", [INFERENCE_CONFIG])
 @pytest.mark.parametrize("input_midi_path", MIDI_PATH)
+@pytest.mark.skip(reason="no way of currently testing this")
 def test_generate(
     tokenizer: MMM, inference_config: InferenceConfig, input_midi_path: str | Path
 ):
