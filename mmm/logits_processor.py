@@ -12,8 +12,9 @@ from transformers import LogitsProcessor
 class StopLogitsProcessor(LogitsProcessor):
     """
 
-    Custom ``transformers.LogitsProcessor`` implementation that allows stopping
-    generation when enough content to infill bars is generated.
+    Custom ``transformers.LogitsProcessor`` implementation.
+
+    Allows stopping generation when enough content to infill bars is generated.
 
     :param bar_start_token_id: ID of the token indicating the start of a bar.
     :param n_bars_to_infill: number of bars to be infilled in this generation step.
@@ -38,13 +39,15 @@ class StopLogitsProcessor(LogitsProcessor):
     def __call__(self, input_ids: torch.LongTensor, scores: torch.FloatTensor) \
             -> torch.FloatTensor:
         """
+        To handle proper infilling generation content.
 
         Assert that the right number of bars are generated
         for infilling and that the generation is stopped when all
         the bars are generated.
 
+        :param input_ids: ids of the input sequence of tokens
+        :param scores: pre-softmax sampling probabilities
         :return: output tokens prediction scores
-
         """
         start_time = time.time()
 

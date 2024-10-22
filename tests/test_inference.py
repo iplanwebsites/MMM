@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import os
 import time
 from pathlib import Path
 
@@ -75,7 +74,7 @@ def test_generate(
     )
 
     t = time.localtime()
-    filename = os.path.splitext(os.path.basename(input_midi_path))[0]
+    filename = Path(input_midi_path).stem
     _.dump_midi(
         Path(__file__).parent / "tests_output" / "33kT12" /
         f"{filename}{t.tm_min}{t.tm_sec}.mid"
