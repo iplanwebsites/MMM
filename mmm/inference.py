@@ -9,12 +9,14 @@ import numpy as np
 from miditok import MMM, TokSequence
 from symusic import Score
 from torch import LongTensor
+from transformers import LogitsProcessorList
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
     from pathlib import Path
 
     from .config import InferenceConfig
+    from .logits_processor import StopLogitsProcessor
 
 
 def generate(
@@ -22,6 +24,7 @@ def generate(
     tokenizer: MMM,
     inference_config: InferenceConfig,
     score_or_path: Score | Path | str,
+    logits_processor: StopLogitsProcessor | None = None,
     generate_kwargs: Mapping | None = None,
 ) -> Score:
     """
@@ -33,6 +36,8 @@ def generate(
     :param tokenizer: MMM tokenizer
     :param inference_config: InferenceConfig
     :param score_or_path: ``symusic.Score`` or path of the music file to infill.
+    :param logits_processor: ``transformers.LogitsProcessor`` used to stop generation
+        when the right number of bars is generated.
     :param generate_kwargs: keyword arguments to provide to the ``model.generate``
         method. For Hugging Face models for example, you can provide a
         ``GenerationConfig`` using this argument.
@@ -45,7 +50,7 @@ def generate(
     # Infill bars
     if inference_config.infilling:
         score = generate_infilling(
-            model, tokenizer, inference_config, score, generate_kwargs
+            model, tokenizer, inference_config, score, logits_processor, generate_kwargs
         )
 
     # Generate new tracks
@@ -124,6 +129,7 @@ def generate_infilling(
     tokenizer: MMM,
     inference_config: InferenceConfig,
     score: Score,
+    logits_processor: StopLogitsProcessor | None = None,
     generate_kwargs: Mapping | None = None,
 ) -> Score:
     """
@@ -137,6 +143,8 @@ def generate_infilling(
     :param tokenizer: MMM tokenizer
     :param score: ``symusic.Score`` to generate a new track from.
     :param inference_config: InferenceConfig
+    :param logits_processor: ``transformers.LogitsProcessor`` used to stop
+        generation when the right number of bars is generated.
     :param generate_kwargs: keyword arguments to provide to the ``model.generate``
         method. For Hugging Face models for example, you can provide a
         ``GenerationConfig`` using this argument.
@@ -144,6 +152,10 @@ def generate_infilling(
     """
     if not generate_kwargs:
         generate_kwargs = {}
+    else:
+        generate_kwargs["generation_config"].eos_token_id = tokenizer.vocab[
+            "FillBar_End"
+        ]
 
     tracks_to_infill = inference_config.bars_to_generate.keys()
     input_tokens = tokenizer.encode(score, concatenate_track_sequences=False)
@@ -155,6 +167,7 @@ def generate_infilling(
             track_to_infill,
             inference_config,
             input_tokens,
+            logits_processor,
             generate_kwargs,
         )
 
@@ -168,6 +181,7 @@ def infill_bars(
     track_idx: int,
     inference_config: InferenceConfig,
     tokens: list[TokSequence],
+    logits_processor: StopLogitsProcessor | None = None,
     generate_kwargs: Mapping | None = None,
 ) -> None:
     """
@@ -181,6 +195,8 @@ def infill_bars(
     :param inference_config: contains information about which tracks and bars to
         generate.
     :param tokens: TokSequence of the track to be infilled
+    :param logits_processor: ``transformers.LogitsProcessor`` used to stop generation
+        when the right number of bars is generated.
     :param generate_kwargs: keyword arguments to provide to the ``model.generate``
         method. For Hugging Face models for example, you can provide a
         ``GenerationConfig`` using this argument.
@@ -196,29 +212,64 @@ def infill_bars(
             tokenizer, track_idx, tokens, subset_bars_to_infill
         )
 
-        output_ids = model.generate(LongTensor([input_seq.ids]), **generate_kwargs)[
-            0
-        ].numpy()
+        logits_processor.n_bars_to_infill = (
+            subset_bars_to_infill[1] - subset_bars_to_infill[0]
+        )
+        logits_processor.n_attribute_controls = len(subset_bars_to_infill[2])
+        logit_processor_list = LogitsProcessorList()
+        logit_processor_list.append(logits_processor)
+
+        # start_time = time.time()
+
+        output_ids = model.generate(
+            LongTensor([input_seq.ids]),
+            logits_processor=logit_processor_list,
+            **generate_kwargs,
+        )[0].numpy()
+
+        # end_time = time.time()
+        # print("Generation time: ", end_time-start_time)
+        # print("Time spent in logits processor ", logits_processor.total_time)
 
         fill_start_idx = np.where(output_ids == tokenizer.vocab["FillBar_Start"])[0][0]
-        track_end_idx = np.where(output_ids == tokenizer.vocab["Track_End"])[0][0]
-
-        fill_end_idx = np.where(output_ids == tokenizer.vocab["FillBar_End"])[0][0]
         infill_bar_idxs = np.where(output_ids == tokenizer.vocab["Infill_Bar"])[0]
+
+        track_start_idxs = np.where(output_ids == tokenizer.vocab["Track_Start"])[0]
+
+        # Here we isolate the generated tokens doing some filtering. In particular,
+        # the model may generate some tokens before the first Bar_None token
+        generated_tokens = TokSequence(are_ids_encoded=True)
+        generated_tokens.ids = output_ids[
+            fill_start_idx + len(subset_bars_to_infill[2]) + 1 : -1
+        ].tolist()
+        # decode_token_ids doesn't support numpy arrays for ids list
+        tokenizer.decode_token_ids(generated_tokens)
+        bar_none_token_idxs = np.where(
+            np.array(generated_tokens.ids) == tokenizer.vocab["Bar_None"]
+        )[0]
+        # bar_none_token_idxs[-1] because we must exclude the last BarNone token,
+        # which is used by the logits processor to stop generation
+        generated_tokens.ids = generated_tokens.ids[
+            bar_none_token_idxs[0] : bar_none_token_idxs[-1]
+        ]
 
         replacing_tokens = TokSequence(are_ids_encoded=True)
 
         # subset_bars_to_infill[2] is the list of attribute controls
         replacing_tokens.ids = np.append(
-            output_ids[: infill_bar_idxs[0]],
-            output_ids[
-                fill_start_idx + 1 + len(subset_bars_to_infill[2]) : fill_end_idx
-            ],
+            output_ids[track_start_idxs[track_idx] : infill_bar_idxs[0]],
+            generated_tokens.ids,
         ).tolist()
-        replacing_tokens.ids = np.append(
-            replacing_tokens.ids,
-            output_ids[infill_bar_idxs[-1] + 1 : track_end_idx + 1],
-        ).tolist()
+        if track_idx == len(tokens) - 1:
+            replacing_tokens.ids = np.append(
+                replacing_tokens.ids,
+                output_ids[infill_bar_idxs[-1] + 1 : fill_start_idx],
+            ).tolist()
+        else:
+            replacing_tokens.ids = np.append(
+                replacing_tokens.ids,
+                output_ids[infill_bar_idxs[-1] + 1 : track_start_idxs[track_idx + 1]],
+            ).tolist()
 
         # Decode BPE ids before getting the associated tokens
         tokenizer.decode_token_ids(replacing_tokens)
@@ -249,7 +300,7 @@ def _adapt_prompt_for_bar_infilling(
     :param subset_bars_to_infill: contains the indexes of the first and last bar to
         infill, plus a list of attribute controls
     """
-    output_toksequence: TokSequence = TokSequence()
+    toksequence_to_infill: TokSequence = TokSequence(are_ids_encoded=False)
 
     start_bar_idx = subset_bars_to_infill[0]
     end_bar_idx = subset_bars_to_infill[1]
@@ -275,10 +326,17 @@ def _adapt_prompt_for_bar_infilling(
         seq_before.ids.append(tokenizer.vocab["Infill_Bar"])
         seq_before.tokens.append("Infill_Bar")
     seq_after = tokens[track_idx][token_idx_end:]
-    output_toksequence += seq_before + seq_after
+    toksequence_to_infill += seq_before + seq_after
 
     # Encode into BPE tokens
-    tokenizer.encode_token_ids(output_toksequence)
+    tokenizer.encode_token_ids(toksequence_to_infill)
+
+    output_toksequence = TokSequence(are_ids_encoded=True)
+    for i in range(len(tokens)):
+        if i == track_idx:
+            output_toksequence += toksequence_to_infill
+            continue
+        output_toksequence += tokens[i]
 
     output_toksequence.ids.append(tokenizer.vocab["FillBar_Start"])
     output_toksequence.tokens.append("FillBar_Start")

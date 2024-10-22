@@ -4,7 +4,7 @@ from torch.backends.mps import is_available as mps_available
 from torch.cuda import is_available as cuda_available
 from torch.cuda import is_bf16_supported
 
-SEED = 444
+SEED = 433
 MODEL_NAME = "MMM"
 HF_USERNAME = "Metacreation"
 
@@ -140,12 +140,13 @@ NUM_INFERENCES_TEST = MAX_SEQ_LEN  # for tests after training, saving the result
 
 # GENERATION CONFIG (for validation and tests)
 NUM_BEAMS = 1
-TEMPERATURE_SAMPLING = 0.8
+TEMPERATURE_SAMPLING = 1.2
 REPETITION_PENALTY = 1.2
-TOP_K = 10
+TOP_K = 20
 TOP_P = 0.95
 EPSILON_CUTOFF = None
 ETA_CUTOFF = None
+MAX_LENGTH = 99999
 
 # DEBUG PARAMS
 """MAX_POSITION_EMBEDDINGS = 2048
