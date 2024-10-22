@@ -50,9 +50,6 @@ def test_generate(
         Path(__file__).parent.parent / "models" / "checkpoint-33000",
         use_safetensors=True,
     )
-    logits_processor = StopLogitsProcessor(
-        tokenizer.vocab["Bar_None"], tokenizer.vocab["FillBar_End"], tokenizer
-    )
 
     gen_config = GenerationConfig(
         num_beams=NUM_BEAMS,
@@ -70,7 +67,6 @@ def test_generate(
         tokenizer,
         inference_config,
         input_midi_path,
-        logits_processor,
         {"generation_config": gen_config},
     )
 

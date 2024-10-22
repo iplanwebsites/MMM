@@ -24,7 +24,6 @@ def generate(
     tokenizer: MMM,
     inference_config: InferenceConfig,
     score_or_path: Score | Path | str,
-    logits_processor: StopLogitsProcessor | None = None,
     generate_kwargs: Mapping | None = None,
 ) -> Score:
     """
@@ -36,8 +35,6 @@ def generate(
     :param tokenizer: MMM tokenizer
     :param inference_config: InferenceConfig
     :param score_or_path: ``symusic.Score`` or path of the music file to infill.
-    :param logits_processor: ``transformers.LogitsProcessor`` used to stop generation
-        when the right number of bars is generated.
     :param generate_kwargs: keyword arguments to provide to the ``model.generate``
         method. For Hugging Face models for example, you can provide a
         ``GenerationConfig`` using this argument.
@@ -45,6 +42,10 @@ def generate(
     """
     score = (
         Score(score_or_path) if not isinstance(score_or_path, Score) else score_or_path
+    )
+
+    logits_processor = StopLogitsProcessor(
+        tokenizer.vocab["Bar_None"], tokenizer.vocab["FillBar_End"], tokenizer
     )
 
     # Infill bars

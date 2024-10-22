@@ -6,7 +6,7 @@ https://www.sphinx-doc.org/en/master/usage/configuration.html
 """
 
 import sys
-import tomllib
+import tomli
 from pathlib import Path
 
 sys.path.insert(0, str(Path("..").resolve()))
@@ -15,7 +15,7 @@ sys.path.insert(0, str(Path("..").resolve()))
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
 with (Path(__file__).parent.parent / "pyproject.toml").open("rb") as f:
-    data = tomllib.load(f)
+    data = tomli.load(f)
 
 project = data["project"]["name"]
 copyright = "2024, Metacreation Lab"  # noqa: A001
