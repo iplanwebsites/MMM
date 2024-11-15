@@ -20,7 +20,6 @@ if TYPE_CHECKING:
     from .config import InferenceConfig
 
 
-
 def generate(
     model: object,
     tokenizer: MMM,
@@ -211,7 +210,6 @@ def infill_bars(
     # (We may have, in the same track, non-adjacent sequences of bars. For
     # each sequence, we do a generation step).
     for subset_bars_to_infill in inference_config.bars_to_generate[track_idx]:
-
         # token_start_idx and token_end_idx are the indices of start
         # and end of infilling, when the toksequence is NOT BPE encoded
         input_seq, token_start_idx, token_end_idx = _adapt_prompt_for_bar_infilling(
@@ -260,6 +258,7 @@ def infill_bars(
         tokens[track_idx].ids[token_start_idx:token_end_idx] = generated_tokens.ids
         tokens[track_idx].tokens = tokenizer._ids_to_tokens(tokens[track_idx].ids)
 
+
 def _adapt_prompt_for_bar_infilling(
     tokenizer: MMM,
     track_idx: int,
@@ -303,9 +302,11 @@ def _adapt_prompt_for_bar_infilling(
 
     # Context
     context_token_start_idx = np.nonzero(
-        times >= bars_ticks[start_bar_idx - num_context_bars])[0][0]
+        times >= bars_ticks[start_bar_idx - num_context_bars]
+    )[0][0]
     context_token_end_idx = np.nonzero(
-        times >= bars_ticks[end_bar_idx + num_context_bars])[0][0]
+        times >= bars_ticks[end_bar_idx + num_context_bars]
+    )[0][0]
 
     conditioning_dict[track_idx] = (context_token_start_idx, context_token_end_idx)
 
@@ -313,8 +314,10 @@ def _adapt_prompt_for_bar_infilling(
     # at the right place
     tokenizer.decode_token_ids(tokens[track_idx])
 
-    seq_before = tokens[track_idx][:2] + tokens[track_idx][
-                                         context_token_start_idx:token_idx_start]
+    seq_before = (
+        tokens[track_idx][:2]
+        + tokens[track_idx][context_token_start_idx:token_idx_start]
+    )
     for _ in range(end_bar_idx - start_bar_idx):
         seq_before.ids.append(tokenizer.vocab["Infill_Bar"])
         seq_before.tokens.append("Infill_Bar")
@@ -334,16 +337,19 @@ def _adapt_prompt_for_bar_infilling(
         times = np.array([event.time for event in tokens[i].events])
         try:
             context_token_start_idx = np.nonzero(
-                times >= bars_ticks[start_bar_idx - num_context_bars])[0][0]
+                times >= bars_ticks[start_bar_idx - num_context_bars]
+            )[0][0]
             context_token_end_idx = np.nonzero(
-                times >= bars_ticks[end_bar_idx + num_context_bars])[0][0]
+                times >= bars_ticks[end_bar_idx + num_context_bars]
+            )[0][0]
         except IndexError:
             continue
         conditioning_dict[i] = (context_token_start_idx, context_token_end_idx)
-        output_toksequence += (tokens[i][:2] +
-                               tokens[i][context_token_start_idx
-                                         :context_token_end_idx] +
-                               tokens[i][-1:])
+        output_toksequence += (
+            tokens[i][:2]
+            + tokens[i][context_token_start_idx:context_token_end_idx]
+            + tokens[i][-1:]
+        )
 
     output_toksequence.ids.append(tokenizer.vocab["FillBar_Start"])
     output_toksequence.tokens.append("FillBar_Start")
@@ -353,7 +359,7 @@ def _adapt_prompt_for_bar_infilling(
         output_toksequence.ids.append(tokenizer.vocab[control])
         output_toksequence.tokens.append(control)
 
-    #with open("tokens.txt", "w") as file:
+    # with open("tokens.txt", "w") as file:
     #    for token in output_toksequence.tokens:
     #        file.write(token + "\n")
 

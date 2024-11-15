@@ -36,10 +36,10 @@ INFERENCE_CONFIG = InferenceConfig(
         # 2: [(4, 8, ["ACBarNoteDensity_6", "ACBarNoteDurationEight_1"])],
         # 3: [(4, 8, ["ACBarNoteDensity_6", "ACBarNoteDurationEight_1"])],
     },
-    []
-    #[
+    [],
+    # [
     #    (43, []),
-    #],
+    # ],
 )
 
 
@@ -57,8 +57,6 @@ def test_generate(
         use_safetensors=True,
     )
 
-
-
     gen_config = GenerationConfig(
         num_beams=NUM_BEAMS,
         temperature=TEMPERATURE_SAMPLING,
@@ -68,7 +66,7 @@ def test_generate(
         epsilon_cutoff=EPSILON_CUTOFF,
         eta_cutoff=ETA_CUTOFF,
         max_new_tokens=MAX_NEW_TOKENS,
-        max_length = MAX_LENGTH,
+        max_length=MAX_LENGTH,
     )
 
     # Get number of tracks and number of bars of the MIDI track
@@ -77,8 +75,13 @@ def test_generate(
     num_bars = len(tokens[0]._ticks_bars)
     num_tracks = len(tokens)
 
-    output_folder_path = (Path(__file__).parent / "tests_output" / "87k" /
-                          "TEST_1"/f"test_{input_midi_path.name!s}")
+    output_folder_path = (
+        Path(__file__).parent
+        / "tests_output"
+        / "87k"
+        / "TEST_1"
+        / f"test_{input_midi_path.name!s}"
+    )
 
     output_folder_path.mkdir(parents=True, exist_ok=True)
 
@@ -101,15 +104,16 @@ def test_generate(
         if len(token_idx_end) == 0:
             print(
                 f"Ignoring infilling of bars {bar_idx_infill_start} - "
-                f"{bar_idx_infill_start + 4} on track {track_idx}")
+                f"{bar_idx_infill_start + 4} on track {track_idx}"
+            )
             continue
 
         inference_config = InferenceConfig(
             {
                 track_idx: [(bar_idx_infill_start, bar_idx_infill_start + 4, [])],
-                #8: [(51, 55, [])],
+                # 8: [(51, 55, [])],
             },
-            []
+            [],
         )
 
         entry = {
@@ -121,7 +125,6 @@ def test_generate(
 
         j = 0
         while j < 1:
-
             start_time = time.time()
 
             _ = generate(
@@ -135,27 +138,20 @@ def test_generate(
             end_time = time.time()
 
             _.dump_midi(
-                output_folder_path
-                / f"track{track_idx}_"
-                  f"infill_bars{bar_idx_infill_start}_{bar_idx_infill_start+4}"
-                  f"_generationtime_{end_time - start_time}.midi.mid"
+                output_folder_path / f"track{track_idx}_"
+                f"infill_bars{bar_idx_infill_start}_{bar_idx_infill_start+4}"
+                f"_generationtime_{end_time - start_time}.midi.mid"
             )
 
-            j+=1
+            j += 1
 
         infillings.append(entry)
 
         i += 1
 
-
-
-    json_data = {
-        "generation_config": gen_config_dict,
-        "infillings": infillings
-    }
+    json_data = {"generation_config": gen_config_dict, "infillings": infillings}
 
     json_string = json.dumps(json_data, indent=4)
     output_json = Path(output_folder_path) / "generation_config.json"
     with output_json.open("w") as file:
         file.write(json_string)
-
