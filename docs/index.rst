@@ -16,5 +16,6 @@ It relies on `MidiTok <https://github.com/Natooz/MidiTok>`_  to tokenize music f
    :maxdepth: 2
    :caption: Contents:
 
+   examples
    inference
    training

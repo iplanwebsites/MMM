@@ -11,3 +11,14 @@ Inference configuration
 
 .. autoclass:: mmm.InferenceConfig
     :members:
+
+The main inference entry point
+-----------------------------
+
+.. autofunction:: mmm.generate
+
+StopLogitsProcessor
+-----------------------------
+
+.. autoclass:: mmm.StopLogitsProcessor
+    :members:

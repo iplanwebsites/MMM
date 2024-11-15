@@ -11,12 +11,13 @@ from symusic import Score
 from torch import LongTensor
 from transformers import LogitsProcessorList
 
+from .logits_processor import StopLogitsProcessor
+
 if TYPE_CHECKING:
     from collections.abc import Mapping
     from pathlib import Path
 
     from .config import InferenceConfig
-    from .logits_processor import StopLogitsProcessor
 
 
 def generate(
@@ -24,7 +25,6 @@ def generate(
     tokenizer: MMM,
     inference_config: InferenceConfig,
     score_or_path: Score | Path | str,
-    logits_processor: StopLogitsProcessor | None = None,
     generate_kwargs: Mapping | None = None,
 ) -> Score:
     """
@@ -36,8 +36,6 @@ def generate(
     :param tokenizer: MMM tokenizer
     :param inference_config: InferenceConfig
     :param score_or_path: ``symusic.Score`` or path of the music file to infill.
-    :param logits_processor: ``transformers.LogitsProcessor`` used to stop generation
-        when the right number of bars is generated.
     :param generate_kwargs: keyword arguments to provide to the ``model.generate``
         method. For Hugging Face models for example, you can provide a
         ``GenerationConfig`` using this argument.
@@ -45,6 +43,10 @@ def generate(
     """
     score = (
         Score(score_or_path) if not isinstance(score_or_path, Score) else score_or_path
+    )
+
+    logits_processor = StopLogitsProcessor(
+        tokenizer.vocab["Bar_None"], tokenizer.vocab["FillBar_End"], tokenizer
     )
 
     # Infill bars
@@ -208,7 +210,9 @@ def infill_bars(
     # (We may have, in the same track, non-adjacent sequences of bars. For
     # each sequence, we do a generation step).
     for subset_bars_to_infill in inference_config.bars_to_generate[track_idx]:
-        input_seq = _adapt_prompt_for_bar_infilling(
+        # token_start_idx and token_end_idx are the indices of start
+        # and end of infilling, when the toksequence is NOT BPE encoded
+        input_seq, token_start_idx, token_end_idx = _adapt_prompt_for_bar_infilling(
             tokenizer, track_idx, tokens, subset_bars_to_infill
         )
 
@@ -232,9 +236,6 @@ def infill_bars(
         # print("Time spent in logits processor ", logits_processor.total_time)
 
         fill_start_idx = np.where(output_ids == tokenizer.vocab["FillBar_Start"])[0][0]
-        infill_bar_idxs = np.where(output_ids == tokenizer.vocab["Infill_Bar"])[0]
-
-        track_start_idxs = np.where(output_ids == tokenizer.vocab["Track_Start"])[0]
 
         # Here we isolate the generated tokens doing some filtering. In particular,
         # the model may generate some tokens before the first Bar_None token
@@ -253,30 +254,9 @@ def infill_bars(
             bar_none_token_idxs[0] : bar_none_token_idxs[-1]
         ]
 
-        replacing_tokens = TokSequence(are_ids_encoded=True)
-
-        # subset_bars_to_infill[2] is the list of attribute controls
-        replacing_tokens.ids = np.append(
-            output_ids[track_start_idxs[track_idx] : infill_bar_idxs[0]],
-            generated_tokens.ids,
-        ).tolist()
-        if track_idx == len(tokens) - 1:
-            replacing_tokens.ids = np.append(
-                replacing_tokens.ids,
-                output_ids[infill_bar_idxs[-1] + 1 : fill_start_idx],
-            ).tolist()
-        else:
-            replacing_tokens.ids = np.append(
-                replacing_tokens.ids,
-                output_ids[infill_bar_idxs[-1] + 1 : track_start_idxs[track_idx + 1]],
-            ).tolist()
-
-        # Decode BPE ids before getting the associated tokens
-        tokenizer.decode_token_ids(replacing_tokens)
-        replacing_tokens.tokens = tokenizer._ids_to_tokens(replacing_tokens.ids)
-
-        # The model is assumed to generate Bar_None at the right position
-        tokens[track_idx] = replacing_tokens
+        tokenizer.decode_token_ids(tokens[track_idx])
+        tokens[track_idx].ids[token_start_idx:token_end_idx] = generated_tokens.ids
+        tokens[track_idx].tokens = tokenizer._ids_to_tokens(tokens[track_idx].ids)
 
 
 def _adapt_prompt_for_bar_infilling(
@@ -300,6 +280,9 @@ def _adapt_prompt_for_bar_infilling(
     :param subset_bars_to_infill: contains the indexes of the first and last bar to
         infill, plus a list of attribute controls
     """
+    num_context_bars = 8
+    conditioning_dict = {}
+
     toksequence_to_infill: TokSequence = TokSequence(are_ids_encoded=False)
 
     start_bar_idx = subset_bars_to_infill[0]
@@ -317,16 +300,31 @@ def _adapt_prompt_for_bar_infilling(
     token_idx_end = np.nonzero(times >= bar_tick_end)[0]
     token_idx_end = token_idx_end[0]
 
+    # Context
+    context_token_start_idx = np.nonzero(
+        times >= bars_ticks[start_bar_idx - num_context_bars]
+    )[0][0]
+    context_token_end_idx = np.nonzero(
+        times >= bars_ticks[end_bar_idx + num_context_bars]
+    )[0][0]
+
+    conditioning_dict[track_idx] = (context_token_start_idx, context_token_end_idx)
+
     # Decode BPE tokens: this is necessary to put <INFILL_BAR> tokens
     # at the right place
     tokenizer.decode_token_ids(tokens[track_idx])
 
-    seq_before = tokens[track_idx][:token_idx_start]
+    seq_before = (
+        tokens[track_idx][:2]
+        + tokens[track_idx][context_token_start_idx:token_idx_start]
+    )
     for _ in range(end_bar_idx - start_bar_idx):
         seq_before.ids.append(tokenizer.vocab["Infill_Bar"])
         seq_before.tokens.append("Infill_Bar")
-    seq_after = tokens[track_idx][token_idx_end:]
+    seq_after = tokens[track_idx][token_idx_end:context_token_end_idx]
     toksequence_to_infill += seq_before + seq_after
+    toksequence_to_infill.ids.append(tokenizer.vocab["Track_End"])
+    toksequence_to_infill.tokens.append("Track_End")
 
     # Encode into BPE tokens
     tokenizer.encode_token_ids(toksequence_to_infill)
@@ -336,7 +334,22 @@ def _adapt_prompt_for_bar_infilling(
         if i == track_idx:
             output_toksequence += toksequence_to_infill
             continue
-        output_toksequence += tokens[i]
+        times = np.array([event.time for event in tokens[i].events])
+        try:
+            context_token_start_idx = np.nonzero(
+                times >= bars_ticks[start_bar_idx - num_context_bars]
+            )[0][0]
+            context_token_end_idx = np.nonzero(
+                times >= bars_ticks[end_bar_idx + num_context_bars]
+            )[0][0]
+        except IndexError:
+            continue
+        conditioning_dict[i] = (context_token_start_idx, context_token_end_idx)
+        output_toksequence += (
+            tokens[i][:2]
+            + tokens[i][context_token_start_idx:context_token_end_idx]
+            + tokens[i][-1:]
+        )
 
     output_toksequence.ids.append(tokenizer.vocab["FillBar_Start"])
     output_toksequence.tokens.append("FillBar_Start")
@@ -346,4 +359,8 @@ def _adapt_prompt_for_bar_infilling(
         output_toksequence.ids.append(tokenizer.vocab[control])
         output_toksequence.tokens.append(control)
 
-    return output_toksequence
+    # with open("tokens.txt", "w") as file:
+    #    for token in output_toksequence.tokens:
+    #        file.write(token + "\n")
+
+    return output_toksequence, token_idx_start, token_idx_end
