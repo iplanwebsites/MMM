@@ -6,8 +6,9 @@ https://www.sphinx-doc.org/en/master/usage/configuration.html
 """
 
 import sys
-import tomli
 from pathlib import Path
+
+import tomli
 
 sys.path.insert(0, str(Path("..").resolve()))
 

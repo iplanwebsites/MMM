@@ -2,31 +2,28 @@
 
 from __future__ import annotations
 
+import json
+import random
 import time
 from pathlib import Path
 
-import os
+import numpy as np
 import pytest
 import symusic
 from miditok import MMM
 from transformers import GenerationConfig, MistralForCausalLM
-import random
-from datetime import datetime
-import json
 
-import numpy as np
-
-from mmm import InferenceConfig, StopLogitsProcessor, generate
+from mmm import InferenceConfig, generate
 from scripts.utils.constants import (
     EPSILON_CUTOFF,
     ETA_CUTOFF,
+    MAX_LENGTH,
     MAX_NEW_TOKENS,
     NUM_BEAMS,
     REPETITION_PENALTY,
     TEMPERATURE_SAMPLING,
     TOP_K,
     TOP_P,
-    MAX_LENGTH
 )
 
 from .utils_tests import MIDI_PATH
@@ -51,7 +48,7 @@ INFERENCE_CONFIG = InferenceConfig(
 )
 @pytest.mark.parametrize("inference_config", [INFERENCE_CONFIG])
 @pytest.mark.parametrize("input_midi_path", MIDI_PATH)
-#@pytest.mark.skip(reason="no way of currently testing this")
+@pytest.mark.skip(reason="This is a generation test! Skipping...")
 def test_generate(
     tokenizer: MMM, inference_config: InferenceConfig, input_midi_path: str | Path
 ):
@@ -80,12 +77,10 @@ def test_generate(
     num_bars = len(tokens[0]._ticks_bars)
     num_tracks = len(tokens)
 
-    current_datetime = datetime.now()
-    timestamp = current_datetime.strftime("%Y-%m-%d_%H-%M-%S")
+    output_folder_path = (Path(__file__).parent / "tests_output" / "87k" /
+                          "TEST_1"/f"test_{input_midi_path.name!s}")
 
-    output_folder_path = Path(__file__).parent / "tests_output" / "87k" / f"TEST_1"/f"test_{str(input_midi_path.name)}"
-
-    os.makedirs(output_folder_path, exist_ok=True)
+    output_folder_path.mkdir(parents=True, exist_ok=True)
 
     # Write gen_config to JSON file
     gen_config_dict = vars(gen_config)
@@ -105,7 +100,8 @@ def test_generate(
 
         if len(token_idx_end) == 0:
             print(
-                f"Ignoring infilling of bars {bar_idx_infill_start} - {bar_idx_infill_start + 4} on track {track_idx}")
+                f"Ignoring infilling of bars {bar_idx_infill_start} - "
+                f"{bar_idx_infill_start + 4} on track {track_idx}")
             continue
 
         inference_config = InferenceConfig(
@@ -138,10 +134,11 @@ def test_generate(
 
             end_time = time.time()
 
-            #filename = Path(input_midi_path).stem
             _.dump_midi(
                 output_folder_path
-                / f"track{track_idx}_infill_bars{bar_idx_infill_start}_{bar_idx_infill_start+4}_generationtime_{end_time - start_time}.midi.mid"
+                / f"track{track_idx}_"
+                  f"infill_bars{bar_idx_infill_start}_{bar_idx_infill_start+4}"
+                  f"_generationtime_{end_time - start_time}.midi.mid"
             )
 
             j+=1
@@ -158,6 +155,7 @@ def test_generate(
     }
 
     json_string = json.dumps(json_data, indent=4)
-    with open(f"{output_folder_path}/generation_config.json", "w") as file:
+    output_json = Path(output_folder_path) / "generation_config.json"
+    with output_json.open("w") as file:
         file.write(json_string)
 
