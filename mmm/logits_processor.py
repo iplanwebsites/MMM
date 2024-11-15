@@ -87,4 +87,7 @@ class StopLogitsProcessor(LogitsProcessor):
 
         end_time = time.time()
         self.total_time += end_time - start_time
+
+        if input_ids[0][-1] == self.tokenizer.vocab["Duration_5.0.1"]:
+            scores[:, self.eos_token_id] = -999999.0
         return scores
