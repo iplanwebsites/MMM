@@ -10,7 +10,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 import symusic
-from miditok import MMM, TokenizerConfig
+from miditok import MMM
 from transformers import GenerationConfig, MistralForCausalLM
 
 from mmm import InferenceConfig, generate
@@ -139,23 +139,27 @@ def test_generate(
         num_bars = len(bars_ticks)
 
         bar_idx_infill_start = random.randint(CONTEXT_SIZE,
-                                              num_bars - CONTEXT_SIZE - NUM_BARS_TO_INFILL)
+                                              num_bars - CONTEXT_SIZE -
+                                              NUM_BARS_TO_INFILL)
 
-        bar_tick_end = bars_ticks[bar_idx_infill_start + NUM_BARS_TO_INFILL + CONTEXT_SIZE]
+        bar_tick_end = bars_ticks[bar_idx_infill_start + NUM_BARS_TO_INFILL +
+                                  CONTEXT_SIZE]
 
         times = np.array([event.time for event in tokens[track_idx].events])
         token_idx_end = np.nonzero(times >= bar_tick_end)[0]
 
         if len(token_idx_end) == 0:
             print(
-                f"[WARNING::test_generate] Ignoring infilling of bars {bar_idx_infill_start} - "
+                f"[WARNING::test_generate] Ignoring infilling of bars "
+                f"{bar_idx_infill_start} - "
                 f"{bar_idx_infill_start + NUM_BARS_TO_INFILL} on track {track_idx}"
             )
             continue
 
         inference_config = InferenceConfig(
             {
-                track_idx: [(bar_idx_infill_start, bar_idx_infill_start + NUM_BARS_TO_INFILL, [])],
+                track_idx: [(bar_idx_infill_start, bar_idx_infill_start
+                             + NUM_BARS_TO_INFILL, [])],
             },
             [],
         )
@@ -170,7 +174,8 @@ def test_generate(
         j = 0
         while j < NUM_GENERATIONS_PER_INFILLING:
 
-            print(f"[INFO::test_generate] Generation #{j} for track {track_idx} (with {num_bars} bars) on bars "
+            print(f"[INFO::test_generate] Generation #{j} for track {track_idx} "
+                  f"(with {num_bars} bars) on bars "
                 f"{bar_idx_infill_start} -{bar_idx_infill_start + NUM_BARS_TO_INFILL}")
 
             start_time = time.time()

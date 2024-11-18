@@ -171,7 +171,7 @@ if __name__ == "__main__":
     for program in range(-1, 128):
         num_occurrences = len(np.where(all_programs == program)[0])
         ratio = num_occurrences / len(all_programs)
-        print(  # noqa: T201
+        print(
             f"Program {program} ("
             f"{'Drums' if program == -1 else MIDI_INSTRUMENTS[program]['name']}): "
             f"{num_occurrences} ({ratio:.3f}%)"
