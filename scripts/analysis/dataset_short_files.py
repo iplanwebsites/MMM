@@ -300,7 +300,7 @@ if __name__ == "__main__":
         num_tracks.append(len(score.tracks))
         programs += [-1 if track.is_drum else track.program for track in score.tracks]
 
-    print(  # noqa: T201
+    print(
         f"Number of files with less than {MIN_NUM_BARS_FILE_VALID} bars: "
         f"{len(num_tracks)}"
     )
@@ -309,7 +309,7 @@ if __name__ == "__main__":
     for program in range(-1, 128):
         num_occurrences = len(np.where(programs == program)[0])
         ratio = num_occurrences / len(programs)
-        print(  # noqa: T201
+        print(
             f"Program {program} ("
             f"{'Drums' if program == -1 else MIDI_INSTRUMENTS[program]['name']}): "
             f"{num_occurrences} ({ratio:.3f}%)"

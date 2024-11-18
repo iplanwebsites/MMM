@@ -38,8 +38,8 @@ def select_device(use_cuda: bool = True, use_mps: bool = True) -> device:
 def print_cuda_memory() -> None:
     """Print the total and free memory of the cuda device."""
     free_mem, global_mem = cuda.mem_get_info(0)
-    print(f"Total: {round(global_mem / 1024 ** 3, 1)} GB")  # noqa:T201
-    print(f"Free: {round(free_mem / 1024 ** 3, 1)} GB")  # noqa:T201
+    print(f"Total: {round(global_mem / 1024 ** 3, 1)} GB")
+    print(f"Free: {round(free_mem / 1024 ** 3, 1)} GB")
 
 
 def is_training_done(run_path: Path) -> bool:
