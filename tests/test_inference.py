@@ -77,16 +77,14 @@ config = TokenizerConfig(**TOKENIZER_PARAMS)
 
 
 @pytest.mark.parametrize(
-    "tokenizer", [MMM(params=Path(__file__).parent.parent / "runs" / "tokenizer.json")]
-    #"tokenizer", [MMM(config)]
+    "tokenizer",
+    [MMM(params=Path(__file__).parent.parent / "runs" / "tokenizer.json")],
+    # "tokenizer", [MMM(config)]
 )
 @pytest.mark.parametrize("input_midi_path", MIDI_PATH)
-#@pytest.mark.parametrize("context_size", CONTEXT_SIZE)
+# @pytest.mark.parametrize("context_size", CONTEXT_SIZE)
 @pytest.mark.skip(reason="This is a generation test! Skipping...")
-def test_generate(
-    tokenizer: MMM,
-    input_midi_path: str | Path
-):
+def test_generate(tokenizer: MMM, input_midi_path: str | Path):
     print(f"[INFO::test_generate] Testing MIDI file: {input_midi_path} ")
 
     # Creating model
@@ -115,7 +113,6 @@ def test_generate(
     num_tracks = len(tokens)
     print(f"[INFO::test_generate] Number of tracks: {num_tracks} ")
 
-
     output_folder_path = (
         Path(__file__).parent
         / "tests_output"
@@ -138,12 +135,13 @@ def test_generate(
         bars_ticks = tokens[track_idx]._ticks_bars
         num_bars = len(bars_ticks)
 
-        bar_idx_infill_start = random.randint(CONTEXT_SIZE,
-                                              num_bars - CONTEXT_SIZE -
-                                              NUM_BARS_TO_INFILL)
+        bar_idx_infill_start = random.randint(
+            CONTEXT_SIZE, num_bars - CONTEXT_SIZE - NUM_BARS_TO_INFILL
+        )
 
-        bar_tick_end = bars_ticks[bar_idx_infill_start + NUM_BARS_TO_INFILL +
-                                  CONTEXT_SIZE]
+        bar_tick_end = bars_ticks[
+            bar_idx_infill_start + NUM_BARS_TO_INFILL + CONTEXT_SIZE
+        ]
 
         times = np.array([event.time for event in tokens[track_idx].events])
         token_idx_end = np.nonzero(times >= bar_tick_end)[0]
@@ -158,8 +156,13 @@ def test_generate(
 
         inference_config = InferenceConfig(
             {
-                track_idx: [(bar_idx_infill_start, bar_idx_infill_start
-                             + NUM_BARS_TO_INFILL, [])],
+                track_idx: [
+                    (
+                        bar_idx_infill_start,
+                        bar_idx_infill_start + NUM_BARS_TO_INFILL,
+                        [],
+                    )
+                ],
             },
             [],
         )
@@ -173,10 +176,11 @@ def test_generate(
 
         j = 0
         while j < NUM_GENERATIONS_PER_INFILLING:
-
-            print(f"[INFO::test_generate] Generation #{j} for track {track_idx} "
-                  f"(with {num_bars} bars) on bars "
-                f"{bar_idx_infill_start} -{bar_idx_infill_start + NUM_BARS_TO_INFILL}")
+            print(
+                f"[INFO::test_generate] Generation #{j} for track {track_idx} "
+                f"(with {num_bars} bars) on bars "
+                f"{bar_idx_infill_start} -{bar_idx_infill_start + NUM_BARS_TO_INFILL}"
+            )
 
             start_time = time.time()
 

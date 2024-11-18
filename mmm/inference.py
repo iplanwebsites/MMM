@@ -56,7 +56,6 @@ def generate(
             model, tokenizer, inference_config, score, logits_processor, generate_kwargs
         )
 
-
     # Generate new tracks
     if inference_config.autoregressive:
         for track in inference_config.new_tracks:
@@ -167,8 +166,10 @@ def generate_infilling(
     input_tokens = tokenizer.encode(score, concatenate_track_sequences=False)
 
     end_time = time.time()
-    print("[INFO::generate_infilling] Time spent for converting score to tokens: ",
-          end_time - start_time)
+    print(
+        "[INFO::generate_infilling] Time spent for converting score to tokens: ",
+        end_time - start_time,
+    )
 
     for track_to_infill in tracks_to_infill:
         infill_bars(
@@ -186,8 +187,10 @@ def generate_infilling(
     start_time = time.time()
     result = tokenizer.base_tokenizer._tokens_to_score(input_tokens)
     end_time = time.time()
-    print("[INFO::generate_infilling] Time spent for converting tokens to score: ",
-          end_time - start_time)
+    print(
+        "[INFO::generate_infilling] Time spent for converting tokens to score: ",
+        end_time - start_time,
+    )
     return result
 
 
@@ -233,8 +236,10 @@ def infill_bars(
         )
 
         end_time = time.time()
-        print("[INFO::infill_bars] Time spent for creating input sequence: ",
-              end_time - start_time)
+        print(
+            "[INFO::infill_bars] Time spent for creating input sequence: ",
+            end_time - start_time,
+        )
 
         logits_processor.n_bars_to_infill = (
             subset_bars_to_infill[1] - subset_bars_to_infill[0]
@@ -242,7 +247,6 @@ def infill_bars(
         logits_processor.n_attribute_controls = len(subset_bars_to_infill[2])
         logit_processor_list = LogitsProcessorList()
         logit_processor_list.append(logits_processor)
-
 
         start_time = time.time()
 
@@ -253,7 +257,7 @@ def infill_bars(
         )[0].numpy()
 
         end_time = time.time()
-        print("[INFO::infill_bars] Time spent for generation: ", end_time-start_time)
+        print("[INFO::infill_bars] Time spent for generation: ", end_time - start_time)
         # print("Time spent in logits processor ", logits_processor.total_time)
 
         start_time = time.time()
@@ -282,8 +286,10 @@ def infill_bars(
         tokens[track_idx].tokens = tokenizer._ids_to_tokens(tokens[track_idx].ids)
 
         end_time = time.time()
-        print("[INFO::infill_bars] Time spend for reconstructing the sequence: ",
-              end_time - start_time)
+        print(
+            "[INFO::infill_bars] Time spend for reconstructing the sequence: ",
+            end_time - start_time,
+        )
 
 
 def _adapt_prompt_for_bar_infilling(
