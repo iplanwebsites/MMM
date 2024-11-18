@@ -47,7 +47,7 @@ NUM_GENERATIONS_PER_INFILLING = 1
 
 # Number of bars to infill in a track
 NUM_BARS_TO_INFILL = 4
-
+"""
 TOKENIZER_PARAMS = {
     "pitch_range": (21, 109),
     "beat_res": {(0, 1): 12, (1, 2): 4, (2, 4): 2, (4, 8): 1},
@@ -73,16 +73,16 @@ TOKENIZER_PARAMS = {
     "base_tokenizer": "REMI",
 }
 config = TokenizerConfig(**TOKENIZER_PARAMS)
-
+"""
 
 
 @pytest.mark.parametrize(
-    #"tokenizer", [MMM(params=Path(__file__).parent.parent / "runs" / "tokenizer.json")]
-    "tokenizer", [MMM(config)]
+    "tokenizer", [MMM(params=Path(__file__).parent.parent / "runs" / "tokenizer.json")]
+    #"tokenizer", [MMM(config)]
 )
 @pytest.mark.parametrize("input_midi_path", MIDI_PATH)
 #@pytest.mark.parametrize("context_size", CONTEXT_SIZE)
-#@pytest.mark.skip(reason="This is a generation test! Skipping...")
+@pytest.mark.skip(reason="This is a generation test! Skipping...")
 def test_generate(
     tokenizer: MMM,
     input_midi_path: str | Path
