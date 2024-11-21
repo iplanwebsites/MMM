@@ -2,6 +2,7 @@
 /tests/test_real_time/
 /tests/tests_output
 /models
+.MMM/
 .idea
 __pycache__
 **/__pycache__

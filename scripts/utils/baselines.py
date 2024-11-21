@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 import torch
-from datasets import load_dataset, Dataset
+from datasets import Dataset, load_dataset
 from miditok import TokenizerConfig
 from miditok.constants import SCORE_LOADING_EXCEPTION
 from miditok.pytorch_data import DataCollator
@@ -183,16 +183,18 @@ class MMM(Baseline):
 
         :return: A dictionary containing the train, validation, and test datasets.
         """
-        dataset_path = "../data/GigaMIDI"
+        dataset_path = Path("../data/GigaMIDI")
 
         try:
             # Load the datasets using load_dataset
             return load_dataset(
                 "parquet",
                 data_files={
-                    'train': os.path.join(dataset_path, "all-instruments-with-drums/train.parquet"),
-                    'validation': os.path.join(dataset_path, "all-instruments-with-drums/validation.parquet"),
-                    'test': os.path.join(dataset_path, "all-instruments-with-drums/test.parquet"),
+                    "train": dataset_path / "all-instruments-with-drums"
+                    "/train.parquet",
+                    "validation": dataset_path / "all-instruments-with-drums"
+                    "/validation.parquet",
+                    "test": dataset_path / "all-instruments-with-drums" "/test.parquet",
                 },
             )
         except PermissionError:
