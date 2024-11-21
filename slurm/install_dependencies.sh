@@ -1,3 +1,5 @@
+#!/bin/bash
+
 # Set SLURM / hardware environment
 #SBATCH --job-name=install
 #SBATCH --output=logs/install.out
@@ -13,11 +15,14 @@
 # Load the python environment
 module load gcc arrow/17.0.0 rust  # needed since arrow can't be installed in the venv via pip
 source .venv/bin/activate
+
+srun bash -c "pip install symusic==0.5.0"
 srun bash -c "pip install git+https://github.com/Natooz/MidiTok"
 srun bash -c "pip install transformers accelerate tensorboard"
 srun bash -c "pip install flash_attn"
-srun bash -c "pip install deepspeed"
+srun bash -c "pip install deepspeed==0.14.4"
 srun bash -c "pip install datasets"
 srun bash -c "pip list"
+
 
 echo "END TIME: $(date)"

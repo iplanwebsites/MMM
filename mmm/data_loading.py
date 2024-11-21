@@ -192,7 +192,7 @@ class DatasetMMM(DatasetMIDI):
         # The tokenization steps are outside the try bloc as if there are errors,
         # we might want to catch them to fix them instead of skipping the iteration.
         try:
-            score = Score.from_midi(self._dataset[idx]["music"]["bytes"])
+            score = Score.from_midi(self._dataset[idx]["music"])
         except SCORE_LOADING_EXCEPTION:
             item = {self.sample_key_name: None, self.labels_key_name: None}
             if self.seq2seq:

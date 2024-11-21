@@ -23,6 +23,7 @@ class InferenceConfig:
 
     bars_to_generate: dict[int, list[tuple[int, int, list[str]]]] | None = None
     new_tracks: list[tuple[int, list[str]]] | None = None
+    context_length: int = 4
     autoregressive: bool = False
     infilling: bool = False
 

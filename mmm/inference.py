@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import time
 import warnings
 from typing import TYPE_CHECKING
 
@@ -160,7 +161,15 @@ def generate_infilling(
         ]
 
     tracks_to_infill = inference_config.bars_to_generate.keys()
+
+    start_time = time.time()
     input_tokens = tokenizer.encode(score, concatenate_track_sequences=False)
+
+    end_time = time.time()
+    print(
+        "[INFO::generate_infilling] Time spent for converting score to tokens: ",
+        end_time - start_time,
+    )
 
     for track_to_infill in tracks_to_infill:
         infill_bars(
@@ -174,7 +183,15 @@ def generate_infilling(
         )
 
     # Here we use the base tokenizer because output_tokens is a list of TokSequences
-    return tokenizer.base_tokenizer._tokens_to_score(input_tokens)
+
+    start_time = time.time()
+    result = tokenizer.base_tokenizer._tokens_to_score(input_tokens)
+    end_time = time.time()
+    print(
+        "[INFO::generate_infilling] Time spent for converting tokens to score: ",
+        end_time - start_time,
+    )
+    return result
 
 
 def infill_bars(
@@ -212,8 +229,16 @@ def infill_bars(
     for subset_bars_to_infill in inference_config.bars_to_generate[track_idx]:
         # token_start_idx and token_end_idx are the indices of start
         # and end of infilling, when the toksequence is NOT BPE encoded
+        start_time = time.time()
+
         input_seq, token_start_idx, token_end_idx = _adapt_prompt_for_bar_infilling(
             tokenizer, track_idx, tokens, subset_bars_to_infill
+        )
+
+        end_time = time.time()
+        print(
+            "[INFO::infill_bars] Time spent for creating input sequence: ",
+            end_time - start_time,
         )
 
         logits_processor.n_bars_to_infill = (
@@ -223,7 +248,7 @@ def infill_bars(
         logit_processor_list = LogitsProcessorList()
         logit_processor_list.append(logits_processor)
 
-        # start_time = time.time()
+        start_time = time.time()
 
         output_ids = model.generate(
             LongTensor([input_seq.ids]),
@@ -231,9 +256,11 @@ def infill_bars(
             **generate_kwargs,
         )[0].numpy()
 
-        # end_time = time.time()
-        # print("Generation time: ", end_time-start_time)
+        end_time = time.time()
+        print("[INFO::infill_bars] Time spent for generation: ", end_time - start_time)
         # print("Time spent in logits processor ", logits_processor.total_time)
+
+        start_time = time.time()
 
         fill_start_idx = np.where(output_ids == tokenizer.vocab["FillBar_Start"])[0][0]
 
@@ -257,6 +284,12 @@ def infill_bars(
         tokenizer.decode_token_ids(tokens[track_idx])
         tokens[track_idx].ids[token_start_idx:token_end_idx] = generated_tokens.ids
         tokens[track_idx].tokens = tokenizer._ids_to_tokens(tokens[track_idx].ids)
+
+        end_time = time.time()
+        print(
+            "[INFO::infill_bars] Time spend for reconstructing the sequence: ",
+            end_time - start_time,
+        )
 
 
 def _adapt_prompt_for_bar_infilling(

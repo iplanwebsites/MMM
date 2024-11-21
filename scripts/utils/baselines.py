@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 import torch
-from datasets import load_dataset
+from datasets import load_dataset, Dataset
 from miditok import TokenizerConfig
 from miditok.constants import SCORE_LOADING_EXCEPTION
 from miditok.pytorch_data import DataCollator
@@ -177,13 +177,44 @@ class MMM(Baseline):
                 path = str(path / "datasets")
                 os.system(f"chmod -R 777 {path}")  # noqa:S605
 
+    def create_dataset_from_parquet(self) -> dict:
+        """
+        Create datasets for train, validation, and test sets from Parquet files.
+
+        :return: A dictionary containing the train, validation, and test datasets.
+        """
+        dataset_path = "../data/GigaMIDI"
+
+        try:
+            # Load the datasets using load_dataset
+            return load_dataset(
+                "parquet",
+                data_files={
+                    'train': os.path.join(dataset_path, "all-instruments-with-drums/train.parquet"),
+                    'validation': os.path.join(dataset_path, "all-instruments-with-drums/validation.parquet"),
+                    'test': os.path.join(dataset_path, "all-instruments-with-drums/test.parquet"),
+                },
+            )
+        except PermissionError:
+            # Handle potential permission errors
+            path = os.getenv("SLURM_TMPDIR")
+            if path is not None:
+                path = Path(path, ".hf_cache")
+            else:
+                path = Path(os.getenv("HOME"), ".cache", "huggingface")
+            path = str(path / "datasets")
+            os.system(f"chmod -R 777 {path}")  # noqa:S605
+
+            # Retry loading the datasets after fixing permissions
+            return self.create_dataset()
+
     def create_data_subsets(self) -> dict[str, DatasetMMM]:
         """
         Create the train/validation/test subsets to train the model.
 
         :return: data subsets.
         """
-        dataset = self.create_dataset()
+        dataset = self.create_dataset_from_parquet()
         return {
             subset_name: DatasetMMM(
                 self.preprocess_dataset(subset),
@@ -211,9 +242,10 @@ class MMM(Baseline):
 
         :param dataset: ``datasets.Dataset`` to process.
         """
+        print(dataset[0])
         return dataset.filter(
             lambda ex: is_score_valid(
-                ex["music"]["bytes"], MIN_NUM_BARS_FILE_VALID, MIN_NUM_NOTES_FILE_VALID
+                ex["music"], MIN_NUM_BARS_FILE_VALID, MIN_NUM_NOTES_FILE_VALID
             )
         )
 
