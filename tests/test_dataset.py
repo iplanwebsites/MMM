@@ -15,7 +15,7 @@ MAX_SEQ_LEN = 2048
 
 def gen():
     for file_path in MIDI_PATHS:
-        yield {"music": {"bytes": file_path.read_bytes()}}
+        yield {"music": file_path.read_bytes()}
 
 
 @pytest.mark.parametrize(
