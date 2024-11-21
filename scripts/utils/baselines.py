@@ -194,7 +194,7 @@ class MMM(Baseline):
                     "/train.parquet",
                     "validation": dataset_path / "all-instruments-with-drums"
                     "/validation.parquet",
-                    "test": dataset_path / "all-instruments-with-drums" "/test.parquet",
+                    "test": dataset_path / "all-instruments-with-drums/test.parquet",
                 },
             )
         except PermissionError:
