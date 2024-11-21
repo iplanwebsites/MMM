@@ -18,8 +18,8 @@
 # Define args
 MODEL_TRAIN_ARGS=" \
     --deepspeed slurm/ds_config.json \
-    --per-device-train-batch-size 16 \
-    --per-device-eval-batch-size 32 \
+    --per-device-train-batch-size 12 \
+    --per-device-eval-batch-size 24 \
     --gradient-accumulation-steps 2 \
     --model MMM_gpt2 \
     "
@@ -72,8 +72,12 @@ srun --ntasks=$SLURM_NNODES --ntasks-per-node=1 bash -c "mkdir $SLURM_TMPDIR/dat
 export LAUNCHER="torchrun --nproc_per_node $SLURM_GPUS_PER_NODE"
 
 # Load the python environment
-module load gcc arrow/17.0.0  # needed since arrow can't be installed in the venv via pip
+module load gcc arrow/17.0.0 cudacore/.12.6.2 cudacompat/.12.6 # needed since arrow can't be installed in the venv via pip
 source .venv/bin/activate
+
+module list
+
+echo "Path to CUDA core is $CUDA_CORE"
 
 # Run the training
 # Tensorboard can be access by running (with computenode replaced with the node hostname):
