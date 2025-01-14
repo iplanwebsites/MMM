@@ -310,7 +310,16 @@ if __name__ == "__main__":
     args = vars(parser.parse_args())
     DATASET_VERSION = "v1.0.0"
 
-    # dataset = datasets.load_dataset("Metacreation/GigaMIDI", token=args["hf_token"])
+    """
+    # Example of how to write back midi files from the parquet files
+    dataset = datasets.load_dataset(args["hf_repo_name"], token=args["hf_token"])
+    for split_name, split_subset in dataset.items():
+        split_dir_path = Path(split_name)
+        split_dir_path.mkdir(exist_ok=True)
+        for row in split_subset:
+            midi_bytes = row["music"]
+            with (split_dir_path / f"row['md5'].mid").open("wb") as file:
+                file.write(midi_bytes)"""
 
     # Load all the raw data (MIDI files, csv and json metadata)
     create_parquet_gigamidi(path_data_directory_local_fs(), DATASET_VERSION)
