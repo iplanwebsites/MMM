@@ -197,34 +197,36 @@ def create_parquet_gigamidi(main_data_dir_path: Path, dataset_version: str) -> N
                 if loops:
                     try:
                         score = Score(file_path, ttype="second")
-                    except SCORE_LOADING_EXCEPTION:
-                        continue  # no loops saved for corrupted files
-                    score.markers = []  # delete all existing ones for simplicity
-                    for track_id, start_sec, end_sec in loops:
-                        score.markers.append(
-                            TextMetaSecond(
-                                float(start_sec), f"#LOOP_{int(track_id)}_on"
-                            )
-                        )
-                        score.markers.append(
-                            TextMetaSecond(float(end_sec), f"#LOOP_{int(track_id)}_off")
-                        )
-                    score = score.to(ttype="tick")
-                    loops_ticks = []
-                    loops_on = {}  # {track_id: start_tick}
-                    for marker in score.markers:
-                        _, track_id, state = marker.text.split("_")
-                        if state == "on":
-                            loops_on[int(track_id)] = marker.time
-                        else:
-                            loops_ticks.append(
-                                (
-                                    int(track_id),
-                                    loops_on.pop(int(track_id)),
-                                    marker.time,
+                        score.markers = []  # delete all existing ones for simplicity
+                        for track_id, start_sec, end_sec in loops:
+                            score.markers.append(
+                                TextMetaSecond(
+                                    float(start_sec), f"#LOOP_{int(track_id)}_on"
                                 )
                             )
-                    metadata_["loops"] = loops_ticks
+                            score.markers.append(
+                                TextMetaSecond(
+                                    float(end_sec), f"#LOOP_{int(track_id)}_off"
+                                )
+                            )
+                        score = score.to(ttype="tick")
+                        loops_ticks = []
+                        loops_on = {}  # {track_id: start_tick}
+                        for marker in score.markers:
+                            _, track_id, state = marker.text.split("_")
+                            if state == "on":
+                                loops_on[int(track_id)] = marker.time
+                            else:
+                                loops_ticks.append(
+                                    (
+                                        int(track_id),
+                                        loops_on.pop(int(track_id)),
+                                        marker.time,
+                                    )
+                                )
+                        metadata_["loops"] = loops_ticks
+                    except SCORE_LOADING_EXCEPTION:
+                        pass  # no loops saved for corrupted files
 
                 yield {
                     "md5": md5,
