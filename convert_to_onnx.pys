@@ -1,0 +1,458 @@
+"""
+Convert a MMM (MIDI-like Music Model) from PyTorch to ONNX format.
+The ONNX model can then be used in JavaScript environments.
+"""
+
+import os
+import torch
+from pathlib import Path
+from transformers import AutoModelForCausalLM, AutoTokenizer
+import onnx
+import onnxruntime as ort
+
+def convert_mmm_to_onnx(
+    model_path: str,
+    output_dir: str,
+    opset_version: int = 15,
+    quantize: bool = False,
+    use_dynamic_axes: bool = True
+):
+    """
+    Convert MMM model to ONNX format.
+    
+    Args:
+        model_path: Path to the HuggingFace model or local model
+        output_dir: Directory to save the ONNX model
+        opset_version: ONNX opset version
+        quantize: Whether to quantize the model
+        use_dynamic_axes: Whether to use dynamic axes for variable batch sizes
+    
+    Returns:
+        Path to the exported ONNX model
+    """
+    print(f"Loading model from {model_path}")
+    tokenizer = AutoTokenizer.from_pretrained(model_path)
+    model = AutoModelForCausalLM.from_pretrained(model_path)
+    model.eval()
+    
+    # Create output directory if it doesn't exist
+    os.makedirs(output_dir, exist_ok=True)
+    
+    # Prepare sample input for the model
+    # You may need to adjust this based on your model's input requirements
+    # For a typical transformer model for generation, we need:
+    # 1. input_ids: token IDs
+    # For MMM, we'll use a simple example with a track start token
+    
+    # Sample input: using Track_Start token as an example
+    track_start_token = tokenizer.vocab.get("Track_Start", tokenizer.vocab.get("<Track_Start>", 0))
+    dummy_input_ids = torch.tensor([[track_start_token]], dtype=torch.long)
+    
+    # Get all the relevant token IDs that might be needed for generation
+    special_tokens = {}
+    for token_name in ["Bar_None", "FillBar_End", "FillBar_Start", "Track_End", "Track_Start"]:
+        special_tokens[token_name] = tokenizer.vocab.get(token_name, tokenizer.vocab.get(f"<{token_name}>", 0))
+    
+    print(f"Special tokens: {special_tokens}")
+    
+    # Define dynamic axes if requested
+    dynamic_axes = None
+    if use_dynamic_axes:
+        dynamic_axes = {
+            'input_ids': {0: 'batch_size', 1: 'sequence_length'},
+            'attention_mask': {0: 'batch_size', 1: 'sequence_length'},
+            'outputs': {0: 'batch_size', 1: 'sequence_length'}
+        }
+    
+    # Path for ONNX model
+    onnx_path = os.path.join(output_dir, "mmm_model.onnx")
+    
+    # For inference, we need the model's forward pass
+    # So we'll export the full model
+    
+    # Create input dict with attention mask
+    attention_mask = torch.ones(dummy_input_ids.shape, dtype=torch.long)
+    
+    # Export the model to ONNX
+    print(f"Exporting model to ONNX format at {onnx_path}")
+    torch.onnx.export(
+        model,
+        args=(dummy_input_ids, attention_mask),
+        f=onnx_path,
+        input_names=['input_ids', 'attention_mask'],
+        output_names=['outputs'],
+        dynamic_axes=dynamic_axes,
+        opset_version=opset_version,
+        export_params=True,
+        do_constant_folding=True,
+        verbose=False
+    )
+    
+    # Check ONNX model
+    print("Checking ONNX model...")
+    onnx_model = onnx.load(onnx_path)
+    onnx.checker.check_model(onnx_model)
+    
+    # Optimize the ONNX model
+    print("Optimizing ONNX model...")
+    from onnxruntime.transformers import optimizer
+    optimized_model = optimizer.optimize_model(
+        onnx_path,
+        model_type='gpt2',  # Use 'gpt2' as a base for causal LM models
+        num_heads=model.config.num_attention_heads,
+        hidden_size=model.config.hidden_size
+    )
+    optimized_model.save_model_to_file(onnx_path)
+    
+    # Quantize the model if requested
+    if quantize:
+        print("Quantizing ONNX model...")
+        from onnxruntime.quantization import quantize_dynamic, QuantType
+        quantized_onnx_path = os.path.join(output_dir, "mmm_model_quantized.onnx")
+        quantize_dynamic(
+            onnx_path,
+            quantized_onnx_path,
+            weight_type=QuantType.QInt8
+        )
+        onnx_path = quantized_onnx_path
+        
+    # Test the ONNX model
+    print("Testing ONNX model...")
+    session = ort.InferenceSession(onnx_path)
+    
+    # Run a simple forward pass
+    ort_inputs = {
+        'input_ids': dummy_input_ids.numpy(),
+        'attention_mask': attention_mask.numpy()
+    }
+    
+    ort_outputs = session.run(None, ort_inputs)
+    print(f"ONNX model test output shape: {ort_outputs[0].shape}")
+    
+    # Export the special token mapping
+    import json
+    with open(os.path.join(output_dir, "special_tokens.json"), "w") as f:
+        json.dump(special_tokens, f, indent=2)
+    
+    print(f"Saved special token mapping to {os.path.join(output_dir, 'special_tokens.json')}")
+    
+    # Export the tokenizer
+    tokenizer.save_pretrained(output_dir)
+    print(f"Saved tokenizer to {output_dir}")
+    
+    return onnx_path
+
+def export_mmm_logits_processor(output_dir: str):
+    """
+    Export the MMM logits processor logic to JavaScript.
+    
+    Args:
+        output_dir: Directory to save the JavaScript implementation
+    """
+    js_code = """
+/**
+ * StopLogitsProcessor for MMM model generation in JavaScript.
+ * This processor stops generation when the specified number of bars have been generated.
+ */
+class StopLogitsProcessor {
+    /**
+     * @param {number} barNoneToken - The token ID for Bar_None
+     * @param {number} fillBarEndToken - The token ID for FillBar_End
+     */
+    constructor(barNoneToken, fillBarEndToken) {
+        this.barNoneToken = barNoneToken;
+        this.fillBarEndToken = fillBarEndToken;
+        this.nBarsToInfill = 0;
+        this.nAttributeControls = 0;
+        this.barNoneCounter = 0;
+        this.totalTime = 0;
+    }
+
+    /**
+     * Set the number of bars to generate
+     * @param {number} n - Number of bars
+     */
+    set n_bars_to_infill(n) {
+        this.nBarsToInfill = n;
+        this.barNoneCounter = 0;
+    }
+
+    /**
+     * Set the number of attribute controls
+     * @param {number} n - Number of attribute controls
+     */
+    set n_attribute_controls(n) {
+        this.nAttributeControls = n;
+    }
+
+    /**
+     * Process the scores during generation
+     * @param {Array} inputIds - Current input IDs
+     * @param {Array} scores - Current token scores
+     * @returns {Array} - Modified scores
+     */
+    process(inputIds, scores) {
+        const startTime = performance.now();
+        
+        // Get the last token
+        const lastToken = inputIds[inputIds.length - 1];
+        
+        if (lastToken === this.barNoneToken) {
+            this.barNoneCounter++;
+            
+            // If we've generated enough bars, encourage the model to generate the end token
+            if (this.barNoneCounter >= this.nBarsToInfill) {
+                // Create a modified scores array
+                const newScores = scores.slice();
+                
+                // Set a high probability for the FillBar_End token
+                newScores[this.fillBarEndToken] = 100;
+                
+                this.totalTime += performance.now() - startTime;
+                return newScores;
+            }
+        }
+        
+        this.totalTime += performance.now() - startTime;
+        return scores;
+    }
+}
+
+export default StopLogitsProcessor;
+"""
+    
+    js_path = os.path.join(output_dir, "stop_logits_processor.js")
+    with open(js_path, "w") as f:
+        f.write(js_code)
+    
+    print(f"Exported StopLogitsProcessor to {js_path}")
+
+def export_inference_example(output_dir: str):
+    """
+    Export an example of how to use the ONNX model with ONNX Runtime Web.
+    
+    Args:
+        output_dir: Directory to save the example
+    """
+    js_code = """
+/**
+ * Example of using MMM model with ONNX Runtime Web for music generation
+ */
+import * as ort from 'onnxruntime-web';
+import StopLogitsProcessor from './stop_logits_processor.js';
+
+// Load special tokens
+const specialTokens = await fetch('./special_tokens.json').then(r => r.json());
+
+// Create tokenizer helper (this is a simplified version, you'll need to implement
+// MMM specific tokenizer functionality)
+class SimpleTokenizer {
+    constructor(vocab) {
+        this.vocab = vocab;
+        this.ids_to_tokens = Object.fromEntries(
+            Object.entries(vocab).map(([k, v]) => [v, k])
+        );
+    }
+    
+    // Placeholder methods - implement based on MMM tokenizer requirements
+    encode(text) {
+        // Implementation needed
+    }
+    
+    decode(ids) {
+        return ids.map(id => this.ids_to_tokens[id] || '').join(' ');
+    }
+}
+
+/**
+ * Generate text from the MMM model
+ * @param {string} modelPath - Path to the ONNX model
+ * @param {Array} inputIds - Input token IDs
+ * @param {Object} config - Generation config
+ * @returns {Promise<Array>} - Generated token IDs
+ */
+async function generateFromMMM(modelPath, inputIds, config = {}) {
+    // Default config
+    const genConfig = {
+        max_length: 100,
+        num_return_sequences: 1,
+        temperature: 1.0,
+        top_k: 50,
+        top_p: 0.95,
+        ...config
+    };
+    
+    // Create inference session
+    const session = await ort.InferenceSession.create(modelPath);
+    
+    // Initialize sequence with input IDs
+    let currentIds = [...inputIds];
+    let attentionMask = new Array(currentIds.length).fill(1);
+    
+    // Create logits processor if needed
+    const logitsProcessor = config.logitsProcessor || null;
+    
+    // Generate tokens
+    while (currentIds.length < genConfig.max_length) {
+        // Create input tensors
+        const inputTensor = new ort.Tensor('int64', new BigInt64Array(currentIds.map(id => BigInt(id))), [1, currentIds.length]);
+        const attentionTensor = new ort.Tensor('int64', new BigInt64Array(attentionMask.map(m => BigInt(m))), [1, attentionMask.length]);
+        
+        // Run inference
+        const results = await session.run({
+            'input_ids': inputTensor,
+            'attention_mask': attentionTensor
+        });
+        
+        // Get the logits (scores) for the next token
+        // Extract the last token's logits
+        const logits = results.outputs.data;
+        const lastTokenLogits = logits.slice(-genConfig.vocab_size);
+        
+        // Apply temperature
+        const scaledLogits = lastTokenLogits.map(l => l / genConfig.temperature);
+        
+        // Apply logits processor if provided
+        let processedLogits = scaledLogits;
+        if (logitsProcessor) {
+            processedLogits = logitsProcessor.process(currentIds, scaledLogits);
+        }
+        
+        // Apply top_k
+        const topKIndices = getTopK(processedLogits, genConfig.top_k);
+        
+        // Apply top_p
+        const topPIndices = getTopP(processedLogits, topKIndices, genConfig.top_p);
+        
+        // Sample token
+        const nextToken = sampleToken(processedLogits, topPIndices);
+        
+        // Add token to sequence
+        currentIds.push(nextToken);
+        attentionMask.push(1);
+        
+        // Check for end token (FillBar_End)
+        if (nextToken === specialTokens.FillBar_End) {
+            break;
+        }
+    }
+    
+    return currentIds;
+}
+
+// Helper functions for token sampling
+function getTopK(logits, k) {
+    const indices = Array.from({ length: logits.length }, (_, i) => i);
+    return indices.sort((a, b) => logits[b] - logits[a]).slice(0, k);
+}
+
+function getTopP(logits, indices, p) {
+    const sortedIndices = [...indices].sort((a, b) => logits[b] - logits[a]);
+    const sortedProbs = softmax(sortedIndices.map(idx => logits[idx]));
+    
+    let cumSum = 0;
+    const result = [];
+    
+    for (let i = 0; i < sortedIndices.length; i++) {
+        cumSum += sortedProbs[i];
+        result.push(sortedIndices[i]);
+        
+        if (cumSum >= p) {
+            break;
+        }
+    }
+    
+    return result;
+}
+
+function softmax(logits) {
+    const maxLogit = Math.max(...logits);
+    const expScores = logits.map(l => Math.exp(l - maxLogit));
+    const sumExp = expScores.reduce((acc, val) => acc + val, 0);
+    return expScores.map(exp => exp / sumExp);
+}
+
+function sampleToken(logits, indices) {
+    const filteredLogits = indices.map(idx => logits[idx]);
+    const probs = softmax(filteredLogits);
+    
+    const random = Math.random();
+    let cumSum = 0;
+    
+    for (let i = 0; i < indices.length; i++) {
+        cumSum += probs[i];
+        if (random < cumSum) {
+            return indices[i];
+        }
+    }
+    
+    return indices[indices.length - 1];
+}
+
+// Example usage
+async function main() {
+    // Load tokenizer and model
+    const tokenizerResponse = await fetch('./tokenizer.json');
+    const tokenizerData = await tokenizerResponse.json();
+    const tokenizer = new SimpleTokenizer(tokenizerData.model.vocab);
+    
+    // Use a basic input sequence
+    const inputSequence = [specialTokens.Track_Start];
+    
+    // Create logits processor
+    const logitsProcessor = new StopLogitsProcessor(
+        specialTokens.Bar_None,
+        specialTokens.FillBar_End
+    );
+    logitsProcessor.n_bars_to_infill = 4;
+    
+    // Generate from the model
+    const generatedIds = await generateFromMMM('./mmm_model.onnx', inputSequence, {
+        max_length: 200,
+        logitsProcessor: logitsProcessor
+    });
+    
+    // Decode the generated tokens
+    const generatedText = tokenizer.decode(generatedIds);
+    console.log('Generated output:', generatedText);
+}
+
+main().catch(console.error);
+"""
+    
+    js_path = os.path.join(output_dir, "inference_example.js")
+    with open(js_path, "w") as f:
+        f.write(js_code)
+    
+    print(f"Exported inference example to {js_path}")
+
+if __name__ == "__main__":
+    import argparse
+    
+    parser = argparse.ArgumentParser(description="Convert MMM model to ONNX format")
+    parser.add_argument("--model_path", type=str, required=True, help="Path to the HuggingFace model or local model")
+    parser.add_argument("--output_dir", type=str, default="./mmm_onnx", help="Directory to save the ONNX model")
+    parser.add_argument("--opset_version", type=int, default=15, help="ONNX opset version")
+    parser.add_argument("--quantize", action="store_true", help="Whether to quantize the model")
+    parser.add_argument("--no_dynamic_axes", action="store_true", help="Disable dynamic axes for fixed batch sizes")
+    
+    args = parser.parse_args()
+    
+    onnx_path = convert_mmm_to_onnx(
+        args.model_path,
+        args.output_dir,
+        args.opset_version,
+        args.quantize,
+        not args.no_dynamic_axes
+    )
+    
+    # Export helper JS files
+    export_mmm_logits_processor(args.output_dir)
+    export_inference_example(args.output_dir)
+    
+    print(f"MMM model successfully converted to ONNX format at {onnx_path}")
+    print(f"Additional JavaScript helper files exported to {args.output_dir}")
+    print("\nNext steps:")
+    print("1. Use the ONNX model in a JavaScript environment with ONNX Runtime Web")
+    print("2. Implement a proper MMM tokenizer in JavaScript")
+    print("3. Modify the inference_example.js as needed for your application")
